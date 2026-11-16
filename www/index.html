@@ -1,0 +1,2253 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BD Health Zone - Full Interactive App Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', 'Hind Siliguri', sans-serif;
+            background-color: #e2e8f0;
+            color: #0f172a;
+        }
+
+        /* Custom Scrollbar for App Container */
+        .app-scroll::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .app-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .app-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        /* Print Styles for Thermal / PDF Invoice */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: 100%;
+                max-width: 100% !important;
+                box-shadow: none !important;
+                border: none !important;
+                padding: 16px !important;
+                background: #ffffff !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex justify-center items-start sm:py-6">
+
+    <!-- Mobile App Shell Container -->
+    <div id="app-shell" class="w-full max-w-md min-h-screen sm:min-h-[820px] sm:max-h-[860px] bg-slate-50 sm:rounded-[36px] sm:border-[10px] sm:border-slate-900 shadow-2xl flex flex-col relative overflow-hidden">
+
+        <!-- Toast Notification Box (Replaces alert()) -->
+        <div id="toast-box" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 hidden max-w-xs w-full px-4 transition-all duration-300">
+            <div id="toast-content" class="bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-slate-700">
+                <i id="toast-icon" class="fas fa-check-circle text-emerald-400 text-base"></i>
+                <span id="toast-msg">Message</span>
+            </div>
+        </div>
+
+        <!-- Global Top App Bar (Hidden on Login/Register) -->
+        <header id="app-header" class="hidden bg-teal-600 text-white px-4 py-3.5 flex items-center justify-between shadow-md z-20 shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleDrawer(true)" class="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center transition">
+                    <i class="fas fa-bars text-base"></i>
+                </button>
+                <div onclick="navigateHome()" class="flex items-center gap-2 cursor-pointer">
+                    <div class="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-teal-600 shadow-sm">
+                        <i class="fas fa-heartbeat text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-sm font-extrabold tracking-tight leading-none">BD Health Zone</h1>
+                        <span id="header-role-badge" class="text-[10px] text-teal-100 font-medium">Patient Portal</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="navigateTo('profile')" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-sm font-bold border border-white/30" title="Profile">
+                    <i class="fas fa-user"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Slide-Out Hamburger Navigation Drawer -->
+        <div id="nav-drawer" class="fixed inset-0 z-40 hidden">
+            <div onclick="toggleDrawer(false)" class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"></div>
+            <aside class="relative w-72 max-w-[80%] h-full bg-white shadow-2xl flex flex-col justify-between z-10">
+                <div>
+                    <div class="bg-gradient-to-br from-teal-600 to-teal-800 text-white p-5">
+                        <div class="flex justify-between items-start">
+                            <div class="w-12 h-12 rounded-2xl bg-white text-teal-600 flex items-center justify-center text-2xl font-extrabold shadow">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <button onclick="toggleDrawer(false)" class="text-white/80 hover:text-white p-1">
+                                <i class="fas fa-times text-lg"></i>
+                            </button>
+                        </div>
+                        <h3 id="drawer-user-name" class="font-bold text-base mt-3">User Name</h3>
+                        <p id="drawer-user-sub" class="text-xs text-teal-100">@username • Role</p>
+                    </div>
+                    <nav id="drawer-links" class="p-3 space-y-1 text-sm font-medium text-slate-700 overflow-y-auto max-h-[55vh]">
+                        <!-- Populated dynamically by role -->
+                    </nav>
+                </div>
+                <div class="p-4 border-t border-slate-100 space-y-2">
+                    <button onclick="resetDemoDatabase()" class="w-full py-2 px-3 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-semibold flex items-center justify-center gap-2">
+                        <i class="fas fa-sync-alt"></i> Reset Demo Data
+                    </button>
+                    <button onclick="logoutUser()" class="w-full py-2.5 px-3 rounded-xl bg-rose-600 text-white hover:bg-rose-700 text-xs font-bold flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </aside>
+        </div>
+
+        <!-- MAIN DYNAMIC VIEWPORT -->
+        <main id="main-viewport" class="flex-1 overflow-y-auto app-scroll pb-20">
+            <!-- Dynamic screens injected here -->
+        </main>
+
+        <!-- Bottom Navigation Bar (Hidden on Login/Register) -->
+        <nav id="bottom-nav" class="hidden bg-white border-t border-slate-200 px-3 py-2 flex justify-around items-center text-[11px] font-semibold text-slate-500 shrink-0 z-20">
+            <!-- Populated dynamically by role -->
+        </nav>
+
+        <!-- Reusable Modal Dialog (For Service Requests, CMS Add/Edit, Invoice Print) -->
+        <div id="app-modal" class="fixed inset-0 z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div onclick="closeModal()" class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"></div>
+            <div id="modal-card" class="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden z-10">
+                <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                    <h3 id="modal-title" class="font-bold text-slate-800 text-base">Modal Title</h3>
+                    <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-slate-200/70 hover:bg-slate-300 flex items-center justify-center text-slate-600">
+                        <i class="fas fa-times text-xs"></i>
+                    </button>
+                </div>
+                <div id="modal-body" class="p-5 overflow-y-auto app-scroll space-y-4 text-sm">
+                    <!-- Modal content injected here -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. LOCALSTORAGE PERSISTENT DATABASE & SEED DATA (Repository Pattern)
+        // =========================================================================
+        const DB_KEY = 'BD_HEALTH_ZONE_DB_V1';
+
+        const defaultSeedData = {
+            users: [
+                { id: 1, fullName: 'Super Admin', phone: '01700000000', username: 'admin', password: 'password-123456', role: 'admin' },
+                { id: 2, fullName: 'System Admin', phone: '01700000001', username: 'user-admin', password: 'password-123456', role: 'admin' },
+                { id: 3, fullName: 'Lab Receptionist', phone: '01800000000', username: 'staff', password: 'password-123456', role: 'staff' },
+                { id: 4, fullName: 'Mahmudul Hasan', phone: '01711223344', username: 'patient', password: 'password-123456', role: 'patient' }
+            ],
+            consultants: [
+                { id: 1, name: 'Prof. Dr. ABM Abdullah', specialization: 'Internal Medicine', degree: 'MBBS, MRCP (UK), FRCP', phone: '01711-556677', chamber: 'Central Hospital, Green Road, Dhaka', visitingTime: 'Sun - Thu (5:00 PM - 9:00 PM)', fees: 1500 },
+                { id: 2, name: 'Prof. Dr. Nazma Begum', specialization: 'Gynecology & Obstetrics', degree: 'MBBS, FCPS (Obs & Gynae)', phone: '01819-223344', chamber: 'Square Hospital, Panthapath, Dhaka', visitingTime: 'Sat, Mon, Wed (4:00 PM - 8:00 PM)', fees: 1200 }
+            ],
+            doctors: [
+                { id: 1, code: 'DOC-101', name: 'Dr. Tanvir Ahmed', specialization: 'Cardiology', degree: 'MBBS, MD (Cardiology)', phone: '01712-998877', chamber: 'Popular Diagnostic, Dhanmondi', visitingTime: 'Daily (6:00 PM - 10:00 PM)', fees: 1000 },
+                { id: 2, code: 'DOC-102', name: 'Dr. Farhana Yasmin', specialization: 'Pediatrics (Child)', degree: 'MBBS, DCH, FCPS', phone: '01911-445566', chamber: 'Ibn Sina Hospital, Uttara', visitingTime: 'Sat - Thu (5:30 PM - 9:00 PM)', fees: 800 },
+                { id: 3, code: 'DOC-103', name: 'Dr. Rafiqul Islam', specialization: 'Orthopedics', degree: 'MBBS, MS (Ortho)', phone: '01611-778899', chamber: 'Labaid Specialized Hospital', visitingTime: 'Sun, Tue, Thu (7:00 PM - 10:00 PM)', fees: 1000 }
+            ],
+            nurses: [
+                { id: 1, name: 'Sadia Afrin', degree: 'BSc in Nursing', phone: '01755-112233', workingLocation: 'Dhaka Medical College Hospital', homeLocation: 'Mirpur-10, Dhaka', organizationName: 'BD Health Nursing Care', dutyTime: 'Day Shift (8 AM - 8 PM)', fees: 1200 },
+                { id: 2, name: 'Rina Akter', degree: 'Diploma in Nursing & Midwifery', phone: '01844-556677', workingLocation: 'United Hospital, Gulshan', homeLocation: 'Badda, Dhaka', organizationName: 'CarePlus Home Nursing', dutyTime: 'Night Shift (8 PM - 8 AM)', fees: 1500 }
+            ],
+            tests: [
+                { id: 1, testName: 'CBC (Complete Blood Count)', department: 'Hematology', subDepartment: 'Routine Blood', price: 500, discountPolicy: 'Flat Discount', discountAmount: 50, comments: 'Fasting not required' },
+                { id: 2, testName: 'Chest X-Ray (Digital PA View)', department: 'Radiology', subDepartment: 'X-Ray', price: 800, discountPolicy: '10% Special', discountAmount: 80, comments: 'Report within 2 hours' },
+                { id: 3, testName: 'Serum Creatinine & Electrolytes', department: 'Biochemistry', subDepartment: 'Kidney Function', price: 1200, discountPolicy: 'Senior Citizen', discountAmount: 150, comments: 'Morning sample preferred' },
+                { id: 4, testName: 'USG of Whole Abdomen', department: 'Sonography', subDepartment: 'Ultrasound', price: 1500, discountPolicy: 'Package Offer', discountAmount: 200, comments: 'Full bladder required' },
+                { id: 5, testName: 'HbA1c (Diabetes Profile)', department: 'Biochemistry', subDepartment: 'Diabetic', price: 1000, discountPolicy: 'None', discountAmount: 0, comments: '3 months avg glucose' }
+            ],
+            bloodDonors: [
+                { id: 1, donorName: 'Tariqul Islam', bloodGroup: 'O+', phone: '01715-123456', location: 'Dhanmondi, Dhaka', availability: true },
+                { id: 2, donorName: 'Nusrat Jahan', bloodGroup: 'A+', phone: '01817-654321', location: 'Uttara Sector-7, Dhaka', availability: true },
+                { id: 3, donorName: 'Kamrul Hasan', bloodGroup: 'B+', phone: '01912-987654', location: 'Mirpur-2, Dhaka', availability: false },
+                { id: 4, donorName: 'Mehedi Hasan', bloodGroup: 'O-', phone: '01670-112233', location: 'Mohammadpur, Dhaka', availability: true },
+                { id: 5, donorName: 'Sumaiya Akter', bloodGroup: 'AB+', phone: '01552-334455', location: 'Bashundhara R/A, Dhaka', availability: true }
+            ],
+            salines: [
+                { id: 1, name: 'Normal Saline (0.9% NaCl - 1000ml)', price: 120, stock: 'Available', details: 'IV Infusion with disposable set' },
+                { id: 2, name: 'Dextrose Saline (5% DNS - 1000ml)', price: 140, stock: 'Available', details: 'Energy & fluid replacement' },
+                { id: 3, name: 'Cholera Saline (Hartmann Solution - 1000ml)', price: 135, stock: 'Available', details: 'Emergency dehydration care' }
+            ],
+            oxygens: [
+                { id: 1, cylinderSize: '1.4 Cubic Meter (10 Liter Portable)', price: 1500, availableQty: 18, phone: '01700-889900' },
+                { id: 2, cylinderSize: '3.4 Cubic Meter (20 Liter Standard)', price: 2500, availableQty: 12, phone: '01700-889900' },
+                { id: 3, cylinderSize: '6.8 Cubic Meter (40 Liter Jumbo ICU)', price: 4200, availableQty: 6, phone: '01700-889900' }
+            ],
+            ambulances: [
+                { id: 1, name: 'LifeLine AC Ambulance', address: 'Panthapath, Dhaka', phone: '01711-001122', fare: '1,500 TK (Inside Dhaka)', type: 'AC Microbus' },
+                { id: 2, name: 'Metro ICU & Freezer Ambulance', address: 'Mohakhali, Dhaka', phone: '01811-334455', fare: '4,500 TK (Inside Dhaka)', type: 'ICU Support' },
+                { id: 3, name: 'Sheba Non-AC Ambulance', address: 'Uttara, Dhaka', phone: '01911-667788', fare: '1,000 TK (Inside Dhaka)', type: 'Non-AC' }
+            ],
+            hospitals: [
+                { id: 1, name: 'Square Hospitals Ltd.', phone: '10616', servicePricing: 'OPD Consultation: 1000-1500 TK, Emergency: 800 TK', seatPricing: 'General Ward: 3,500/day | Single Cabin: 8,500/day | ICU: 22,000/day' },
+                { id: 2, name: 'Ibn Sina Specialized Hospital', phone: '10615', servicePricing: 'Diagnostic 20% Off, Emergency: 500 TK', seatPricing: 'General Bed: 2,000/day | AC Cabin: 5,500/day | ICU: 15,000/day' },
+                { id: 3, name: 'Popular Medical College Hospital', phone: '09613-787801', servicePricing: '24/7 Pathology & Radiology', seatPricing: 'Ward: 1,800/day | Deluxe Cabin: 6,000/day | CCU: 14,000/day' }
+            ],
+            transfusions: [
+                { id: 1, name: 'Quantum Blood Lab & Transfusion Center', phone: '01714-010869', location: 'Shantinagar, Dhaka', details: 'Safe Blood Screening, Platelet & Plasma Transfusion' },
+                { id: 2, name: 'Bangladesh Red Crescent Blood Center', phone: '02-9116563', location: 'Mohammadpur, Dhaka', details: '24/7 Cross-matching & Whole Blood Transfusion' }
+            ],
+            ayas: [
+                { id: 1, name: 'Morium Begum', phone: '01722-334455', gender: 'Female', age: 34, expertise: 'Elderly Care & Post-Surgery Patient Support', fees: 800 },
+                { id: 2, name: 'Abdul Kader', phone: '01822-667788', gender: 'Male', age: 38, expertise: 'Male Patient Mobility & Hospital Companion', fees: 900 },
+                { id: 3, name: 'Fatema Khatun', phone: '01922-990011', gender: 'Female', age: 29, expertise: 'Newborn Baby & Mother Care', fees: 850 }
+            ],
+            helplines: [
+                { id: 1, title: 'National Emergency Service (Ambulance/Police)', phone: '999' },
+                { id: 2, title: 'Shasthyo Batayon (24/7 Govt Doctor Helpline)', phone: '16263' },
+                { id: 3, title: 'BD Health Zone 24/7 Support Desk', phone: '01700-112233' }
+            ],
+            paymentChannels: [
+                { id: 1, channelName: 'bKash', channelType: 'Personal', method: 'Send Money', accountNumber: '01711-223344', color: 'bg-pink-600', icon: 'fa-mobile-alt' },
+                { id: 2, channelName: 'bKash', channelType: 'Agent', method: 'Cash Out', accountNumber: '01711-998877', color: 'bg-pink-700', icon: 'fa-store' },
+                { id: 3, channelName: 'Nagad', channelType: 'Personal', method: 'Send Money', accountNumber: '01811-223344', color: 'bg-orange-600', icon: 'fa-mobile-alt' },
+                { id: 4, channelName: 'Nagad', channelType: 'Agent', method: 'Cash Out', accountNumber: '01811-998877', color: 'bg-orange-700', icon: 'fa-store' },
+                { id: 5, channelName: 'Upay', channelType: 'Personal', method: 'Send Money', accountNumber: '01911-223344', color: 'bg-amber-500', icon: 'fa-wallet' },
+                { id: 6, channelName: 'Rocket', channelType: 'Personal', method: 'Send Money', accountNumber: '01711-2233449', color: 'bg-purple-700', icon: 'fa-paper-plane' },
+                { id: 7, channelName: 'Dutch Bangla Bank', channelType: 'Bank Account', method: 'Bank Deposit', accountNumber: '123-456-789-00', color: 'bg-blue-700', icon: 'fa-university' },
+                { id: 8, channelName: 'Asia Bangla Bank', channelType: 'Bank Account', method: 'Bank Deposit', accountNumber: '987-654-321-00', color: 'bg-emerald-700', icon: 'fa-landmark' }
+            ],
+            orders: [
+                {
+                    id: 1001,
+                    orderNo: '#0123456789',
+                    type: 'Diagnostic Bill',
+                    patientName: 'Abdur Rahim',
+                    patientAge: '45',
+                    gender: 'Male',
+                    maritalStatus: 'Married',
+                    bloodGroup: 'O+',
+                    contactNumber: '01712-345678',
+                    address: 'Dhanmondi, Dhaka',
+                    doctorCode: 'DOC-101',
+                    doctorName: 'Dr. Tanvir Ahmed',
+                    doctorSpeciality: 'Cardiology',
+                    items: [
+                        { name: 'CBC (Complete Blood Count)', rate: 500 },
+                        { name: 'Chest X-Ray (Digital PA View)', rate: 800 }
+                    ],
+                    itemTotal: 1300,
+                    vatPercent: 5,
+                    totalVat: 65,
+                    discount: 165,
+                    totalBill: 1200,
+                    payAmount: 1200,
+                    due: 0,
+                    paymentChannel: 'bKash (Personal)',
+                    transactionId: '9H7G6F5D4S',
+                    status: 'Approved',
+                    createdBy: 'staff',
+                    createdAt: '2026-11-16 10:30 AM'
+                }
+            ]
+        };
+
+        // Repository Methods
+        function getDB() {
+            const raw = localStorage.getItem(DB_KEY);
+            if (!raw) {
+                localStorage.setItem(DB_KEY, JSON.stringify(defaultSeedData));
+                return JSON.parse(JSON.stringify(defaultSeedData));
+            }
+            return JSON.parse(raw);
+        }
+
+        function saveDB(db) {
+            localStorage.setItem(DB_KEY, JSON.stringify(db));
+        }
+
+        function resetDemoDatabase() {
+            localStorage.setItem(DB_KEY, JSON.stringify(defaultSeedData));
+            showToast('ডেমো ডাটাবেজ রিসেট করা হয়েছে!', 'success');
+            toggleDrawer(false);
+            if (currentUser) navigateHome();
+        }
+
+        // =========================================================================
+        // 2. APPLICATION STATE & ROUTING
+        // =========================================================================
+        let currentUser = null;
+        let currentRoute = 'login';
+        let activeOrderDraft = null; // Used when passing order to Payment screen
+        let selectedPaymentChannelId = 1;
+        let bloodFilter = 'ALL';
+        let activeCmsTab = 'consultants';
+
+        // Diagnostic Billing State
+        let diagFormState = {
+            patientName: '', age: '', gender: 'Male', maritalStatus: 'Married', bloodGroup: 'O+', contact: '', address: '',
+            doctorCode: '', doctorName: '', doctorSpeciality: '',
+            items: [{ name: 'CBC (Complete Blood Count)', rate: 500 }],
+            vatPercent: 0,
+            discount: 0,
+            payAmount: 500
+        };
+
+        function showToast(msg, type = 'success') {
+            const box = document.getElementById('toast-box');
+            const content = document.getElementById('toast-content');
+            const icon = document.getElementById('toast-icon');
+            const text = document.getElementById('toast-msg');
+
+            text.textContent = msg;
+            icon.className = type === 'error'
+                ? 'fas fa-exclamation-circle text-rose-400 text-base'
+                : 'fas fa-check-circle text-emerald-400 text-base';
+
+            box.classList.remove('hidden');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                box.classList.add('hidden');
+            }, 3000);
+        }
+
+        function toggleDrawer(open) {
+            const drawer = document.getElementById('nav-drawer');
+            if (open) drawer.classList.remove('hidden');
+            else drawer.classList.add('hidden');
+        }
+
+        function openModal(title, htmlContent) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').innerHTML = htmlContent;
+            document.getElementById('app-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('app-modal').classList.add('hidden');
+        }
+
+        function navigateHome() {
+            if (!currentUser) return navigateTo('login');
+            if (currentUser.role === 'admin') navigateTo('admin_dashboard');
+            else if (currentUser.role === 'staff') navigateTo('diagnostic_entry');
+            else navigateTo('patient_home');
+        }
+
+        function navigateTo(route, param = null) {
+            const prevRoute = currentRoute;
+            const viewport = document.getElementById('main-viewport');
+            const prevScrollTop = viewport ? viewport.scrollTop : 0;
+
+            currentRoute = route;
+            toggleDrawer(false);
+            updateChromeUI();
+
+            const activeViewport = document.getElementById('main-viewport');
+            activeViewport.scrollTop = (prevRoute === route) ? prevScrollTop : 0;
+
+            switch (route) {
+                case 'login':
+                    viewport.innerHTML = renderLoginScreen();
+                    break;
+                case 'register':
+                    viewport.innerHTML = renderRegisterScreen();
+                    break;
+                case 'patient_home':
+                    viewport.innerHTML = renderPatientHome();
+                    break;
+                case 'service_detail':
+                    viewport.innerHTML = renderServiceDetail(param);
+                    break;
+                case 'diagnostic_entry':
+                    viewport.innerHTML = renderDiagnosticEntry();
+                    recalcDiagnosticTotals();
+                    break;
+                case 'order_processing':
+                    viewport.innerHTML = renderOrderProcessing();
+                    break;
+                case 'submit_trx':
+                    viewport.innerHTML = renderSubmitTransaction();
+                    break;
+                case 'my_orders':
+                    viewport.innerHTML = renderOrdersAndInvoices();
+                    break;
+                case 'admin_dashboard':
+                    viewport.innerHTML = renderAdminSettingsDashboard();
+                    break;
+                case 'admin_cms':
+                    if (param) activeCmsTab = param;
+                    viewport.innerHTML = renderAdminCMS();
+                    break;
+                case 'admin_payments':
+                    viewport.innerHTML = renderAdminPaymentChannels();
+                    break;
+                case 'admin_users':
+                    viewport.innerHTML = renderAdminUserManagement();
+                    break;
+                case 'admin_sales':
+                    viewport.innerHTML = renderAdminSalesReport();
+                    break;
+                case 'profile':
+                    viewport.innerHTML = renderProfileScreen();
+                    break;
+                default:
+                    viewport.innerHTML = renderLoginScreen();
+            }
+        }
+
+        function updateChromeUI() {
+            const header = document.getElementById('app-header');
+            const bottomNav = document.getElementById('bottom-nav');
+
+            if (!currentUser || currentRoute === 'login' || currentRoute === 'register') {
+                header.classList.add('hidden');
+                bottomNav.classList.add('hidden');
+                return;
+            }
+
+            header.classList.remove('hidden');
+            bottomNav.classList.remove('hidden');
+
+            // Update Role Badge & Drawer Info
+            const roleLabels = { admin: 'Super Admin', staff: 'Diagnostic Staff', patient: 'Patient / User' };
+            document.getElementById('header-role-badge').textContent = roleLabels[currentUser.role] || 'User';
+            document.getElementById('drawer-user-name').textContent = currentUser.fullName;
+            document.getElementById('drawer-user-sub').textContent = `@${currentUser.username} • ${roleLabels[currentUser.role]}`;
+
+            // Drawer & Bottom Navigation Links based on Role
+            const drawerLinks = document.getElementById('drawer-links');
+            if (currentUser.role === 'admin') {
+                drawerLinks.innerHTML = `
+                    <button onclick="navigateTo('admin_dashboard')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 hover:text-teal-700 flex items-center gap-3"><i class="fas fa-th-large w-5 text-teal-600"></i> Admin Settings Menu</button>
+                    <button onclick="navigateTo('admin_cms')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 hover:text-teal-700 flex items-center gap-3"><i class="fas fa-database w-5 text-blue-600"></i> Service Data CMS (11 Modules)</button>
+                    <button onclick="navigateTo('diagnostic_entry')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 hover:text-teal-700 flex items-center gap-3"><i class="fas fa-file-medical w-5 text-purple-600"></i> Diagnostic Order Entry</button>
+                    <button onclick="navigateTo('admin_payments')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 hover:text-teal-700 flex items-center gap-3"><i class="fas fa-wallet w-5 text-pink-600"></i> Payment Channels</button>
+                    <button onclick="navigateTo('my_orders')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 hover:text-teal-700 flex items-center gap-3"><i class="fas fa-receipt w-5 text-amber-600"></i> Invoices & Trx Verify</button>
+                    <button onclick="navigateTo('admin_sales')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 hover:text-teal-700 flex items-center gap-3"><i class="fas fa-chart-line w-5 text-emerald-600"></i> Sales & Analytics</button>
+                    <button onclick="navigateTo('admin_users')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 hover:text-teal-700 flex items-center gap-3"><i class="fas fa-users-cog w-5 text-slate-600"></i> User Management</button>
+                    <button onclick="navigateTo('patient_home')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 hover:text-teal-700 flex items-center gap-3"><i class="fas fa-mobile-alt w-5 text-teal-600"></i> Preview Patient Home</button>
+                `;
+                bottomNav.innerHTML = `
+                    <button onclick="navigateTo('admin_dashboard')" class="flex flex-col items-center ${currentRoute==='admin_dashboard'?'text-teal-600':''}"><i class="fas fa-cog text-base mb-0.5"></i><span>Settings</span></button>
+                    <button onclick="navigateTo('admin_cms')" class="flex flex-col items-center ${currentRoute==='admin_cms'?'text-teal-600':''}"><i class="fas fa-edit text-base mb-0.5"></i><span>CMS Data</span></button>
+                    <button onclick="navigateTo('diagnostic_entry')" class="flex flex-col items-center ${currentRoute==='diagnostic_entry'?'text-teal-600':''}"><i class="fas fa-plus-circle text-base mb-0.5"></i><span>Billing</span></button>
+                    <button onclick="navigateTo('my_orders')" class="flex flex-col items-center ${currentRoute==='my_orders'?'text-teal-600':''}"><i class="fas fa-receipt text-base mb-0.5"></i><span>Invoices</span></button>
+                    <button onclick="navigateTo('admin_sales')" class="flex flex-col items-center ${currentRoute==='admin_sales'?'text-teal-600':''}"><i class="fas fa-chart-pie text-base mb-0.5"></i><span>Sales</span></button>
+                `;
+            } else if (currentUser.role === 'staff') {
+                drawerLinks.innerHTML = `
+                    <button onclick="navigateTo('diagnostic_entry')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3"><i class="fas fa-file-medical w-5 text-blue-600"></i> Diagnostic Billing Entry</button>
+                    <button onclick="navigateTo('my_orders')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3"><i class="fas fa-receipt w-5 text-amber-600"></i> All Invoices & Due Collect</button>
+                    <button onclick="navigateTo('patient_home')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3"><i class="fas fa-hospital-user w-5 text-teal-600"></i> Services Directory</button>
+                    <button onclick="navigateTo('profile')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3"><i class="fas fa-user-edit w-5 text-slate-600"></i> Profile Setting</button>
+                `;
+                bottomNav.innerHTML = `
+                    <button onclick="navigateTo('diagnostic_entry')" class="flex flex-col items-center ${currentRoute==='diagnostic_entry'?'text-teal-600':''}"><i class="fas fa-calculator text-base mb-0.5"></i><span>New Bill</span></button>
+                    <button onclick="navigateTo('my_orders')" class="flex flex-col items-center ${currentRoute==='my_orders'?'text-teal-600':''}"><i class="fas fa-receipt text-base mb-0.5"></i><span>Invoices</span></button>
+                    <button onclick="navigateTo('patient_home')" class="flex flex-col items-center ${currentRoute==='patient_home'?'text-teal-600':''}"><i class="fas fa-th-large text-base mb-0.5"></i><span>Services</span></button>
+                    <button onclick="navigateTo('profile')" class="flex flex-col items-center ${currentRoute==='profile'?'text-teal-600':''}"><i class="fas fa-user text-base mb-0.5"></i><span>Profile</span></button>
+                `;
+            } else {
+                drawerLinks.innerHTML = `
+                    <button onclick="navigateTo('patient_home')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3"><i class="fas fa-home w-5 text-teal-600"></i> Home Services</button>
+                    <button onclick="navigateTo('service_detail', 'blood')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3"><i class="fas fa-tint w-5 text-rose-600"></i> Blood Donor List</button>
+                    <button onclick="navigateTo('service_detail', 'test')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3"><i class="fas fa-vials w-5 text-purple-600"></i> Diagnostic Test Rates</button>
+                    <button onclick="navigateTo('my_orders')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3"><i class="fas fa-receipt w-5 text-blue-600"></i> My Orders & Invoices</button>
+                    <button onclick="navigateTo('profile')" class="w-full text-left px-3 py-2.5 rounded-xl hover:bg-teal-50 flex items-center gap-3"><i class="fas fa-user-cog w-5 text-slate-600"></i> Profile Setting</button>
+                `;
+                bottomNav.innerHTML = `
+                    <button onclick="navigateTo('patient_home')" class="flex flex-col items-center ${currentRoute==='patient_home'?'text-teal-600':''}"><i class="fas fa-home text-base mb-0.5"></i><span>Home</span></button>
+                    <button onclick="navigateTo('service_detail', 'blood')" class="flex flex-col items-center ${currentRoute==='service_detail'?'text-teal-600':''}"><i class="fas fa-tint text-base mb-0.5"></i><span>Blood</span></button>
+                    <button onclick="navigateTo('my_orders')" class="flex flex-col items-center ${currentRoute==='my_orders'?'text-teal-600':''}"><i class="fas fa-receipt text-base mb-0.5"></i><span>My Orders</span></button>
+                    <button onclick="navigateTo('profile')" class="flex flex-col items-center ${currentRoute==='profile'?'text-teal-600':''}"><i class="fas fa-user text-base mb-0.5"></i><span>Profile</span></button>
+                `;
+            }
+        }
+
+        // =========================================================================
+        // 3. AUTHENTICATION SCREENS & LOGIC
+        // =========================================================================
+        function renderLoginScreen() {
+            return `
+                <div class="min-h-full flex flex-col justify-between p-6 bg-gradient-to-b from-teal-50 via-white to-slate-50">
+                    <div class="mt-8 text-center">
+                        <div class="w-20 h-20 bg-teal-600 rounded-3xl mx-auto flex items-center justify-center shadow-lg shadow-teal-200 border-4 border-white">
+                            <i class="fas fa-heartbeat text-4xl text-white"></i>
+                        </div>
+                        <h1 class="text-2xl font-extrabold text-slate-800 mt-4 tracking-tight">BD Health Zone</h1>
+                        <p class="text-xs text-slate-500 mt-1">স্বাস্থ্যসেবা ও ডায়াগনস্টিক ম্যানেজমেন্ট প্ল্যাটফর্ম</p>
+                    </div>
+
+                    <form onsubmit="handleLogin(event)" class="space-y-4 my-6">
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">User Name or Phone</label>
+                            <div class="relative">
+                                <i class="fas fa-user absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                                <input id="login-user" type="text" required placeholder="Enter username or phone" value="admin"
+                                    class="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:border-teal-500 shadow-2xs">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">Password</label>
+                            <div class="relative">
+                                <i class="fas fa-lock absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                                <input id="login-pass" type="password" required placeholder="Enter password" value="password-123456"
+                                    class="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:border-teal-500 shadow-2xs">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-2xl shadow-lg shadow-teal-200 transition text-sm">
+                            Login
+                        </button>
+
+                        <!-- Quick One-Click Credential Fillers for Testing -->
+                        <div class="pt-3 border-t border-slate-200/80">
+                            <p class="text-[11px] text-center text-slate-400 font-medium mb-2">দ্রুত টেস্ট করার জন্য রোল বেছে নিন (Quick Fill):</p>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button type="button" onclick="quickFillLogin('admin', 'password-123456')" class="py-2 px-2 bg-slate-800 text-white rounded-xl text-[11px] font-bold hover:bg-slate-900 transition">
+                                    <i class="fas fa-shield-alt mr-1"></i>Admin
+                                </button>
+                                <button type="button" onclick="quickFillLogin('staff', 'password-123456')" class="py-2 px-2 bg-blue-600 text-white rounded-xl text-[11px] font-bold hover:bg-blue-700 transition">
+                                    <i class="fas fa-user-nurse mr-1"></i>Staff
+                                </button>
+                                <button type="button" onclick="quickFillLogin('patient', 'password-123456')" class="py-2 px-2 bg-emerald-600 text-white rounded-xl text-[11px] font-bold hover:bg-emerald-700 transition">
+                                    <i class="fas fa-user mr-1"></i>Patient
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div class="text-center pb-4">
+                        <p class="text-xs text-slate-500 mb-2">নতুন ব্যবহারকারী?</p>
+                        <button onclick="navigateTo('register')" class="w-full py-3 bg-white border-2 border-teal-600 text-teal-700 hover:bg-teal-50 font-bold rounded-2xl text-sm transition">
+                            Create Account
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function quickFillLogin(user, pass) {
+            document.getElementById('login-user').value = user;
+            document.getElementById('login-pass').value = pass;
+            showToast(`Filled ${user} credentials! Click Login.`, 'success');
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const inputUser = document.getElementById('login-user').value.trim();
+            const inputPass = document.getElementById('login-pass').value.trim();
+
+            const db = getDB();
+            const found = db.users.find(u =>
+                (u.username.toLowerCase() === inputUser.toLowerCase() || u.phone === inputUser) &&
+                u.password === inputPass
+            );
+
+            if (!found) {
+                showToast('ভুল ইউজারনেম বা পাসওয়ার্ড! আবার চেষ্টা করুন।', 'error');
+                return;
+            }
+
+            currentUser = found;
+            showToast(`স্বাগতম, ${found.fullName}!`, 'success');
+            navigateHome();
+        }
+
+        function renderRegisterScreen() {
+            return `
+                <div class="min-h-full flex flex-col p-6 bg-slate-50">
+                    <div class="flex items-center gap-3 mb-6">
+                        <button onclick="navigateTo('login')" class="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600">
+                            <i class="fas fa-arrow-left text-xs"></i>
+                        </button>
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 bg-teal-600 rounded-xl flex items-center justify-center text-white">
+                                <i class="fas fa-heartbeat"></i>
+                            </div>
+                            <h2 class="text-lg font-extrabold text-slate-800">BD Health Zone</h2>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+                        <h3 class="text-base font-bold text-slate-800 mb-1">Create New Account</h3>
+                        <p class="text-xs text-slate-500 mb-4">সাধারণ রোগী বা ইউজার হিসেবে রেজিস্ট্রেশন করুন</p>
+
+                        <form onsubmit="handleRegister(event)" class="space-y-3.5">
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 block mb-1">Full Name</label>
+                                <input id="reg-name" type="text" required placeholder="আপনার পূর্ণ নাম" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 block mb-1">Phone Number</label>
+                                <input id="reg-phone" type="tel" required placeholder="017XXXXXXXX" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 block mb-1">Username</label>
+                                <input id="reg-username" type="text" required placeholder="একটি ইউজারনেম দিন" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600 block mb-1">Password</label>
+                                <input id="reg-pass" type="password" required placeholder="পাসওয়ার্ড দিন" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                            </div>
+                            <button type="submit" class="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-md text-sm mt-2">
+                                Create Account
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const fullName = document.getElementById('reg-name').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+            const username = document.getElementById('reg-username').value.trim();
+            const password = document.getElementById('reg-pass').value.trim();
+
+            const db = getDB();
+            if (db.users.some(u => u.username.toLowerCase() === username.toLowerCase() || u.phone === phone)) {
+                showToast('এই ইউজারনেম বা ফোন নম্বরটি ইতিমধ্যে ব্যবহৃত হয়েছে!', 'error');
+                return;
+            }
+
+            const newUser = {
+                id: Date.now(),
+                fullName,
+                phone,
+                username,
+                password,
+                role: 'patient'
+            };
+            db.users.push(newUser);
+            saveDB(db);
+
+            currentUser = newUser;
+            showToast('অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে!', 'success');
+            navigateTo('patient_home');
+        }
+
+        function logoutUser() {
+            currentUser = null;
+            toggleDrawer(false);
+            showToast('লগআউট সম্পন্ন হয়েছে', 'success');
+            navigateTo('login');
+        }
+
+        // =========================================================================
+        // 4. PATIENT HOME DASHBOARD (12 SERVICES GRID) & SERVICE DETAIL MODULES
+        // =========================================================================
+        function renderPatientHome() {
+            const services = [
+                { key: 'consultant', label: 'Consultant', icon: 'fa-user-md', bg: 'bg-teal-50', text: 'text-teal-600' },
+                { key: 'doctor', label: 'Doctor', icon: 'fa-stethoscope', bg: 'bg-blue-50', text: 'text-blue-600' },
+                { key: 'nurse', label: 'Nurse', icon: 'fa-user-nurse', bg: 'bg-indigo-50', text: 'text-indigo-600' },
+                { key: 'test', label: 'Test', icon: 'fa-vials', bg: 'bg-purple-50', text: 'text-purple-600' },
+                { key: 'blood', label: 'Blood', icon: 'fa-tint', bg: 'bg-rose-50', text: 'text-rose-600' },
+                { key: 'saline', label: 'Saline', icon: 'fa-prescription-bottle', bg: 'bg-cyan-50', text: 'text-cyan-600' },
+                { key: 'oxygen', label: 'Oxygen', icon: 'fa-lungs', bg: 'bg-sky-50', text: 'text-sky-600' },
+                { key: 'ambulance', label: 'Ambulance', icon: 'fa-ambulance', bg: 'bg-amber-50', text: 'text-amber-600' },
+                { key: 'hospital', label: 'Hospital', icon: 'fa-hospital', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+                { key: 'transfusion', label: 'Transfusion', icon: 'fa-hand-holding-medical', bg: 'bg-pink-50', text: 'text-pink-600' },
+                { key: 'aya', label: 'Aya', icon: 'fa-hands-helping', bg: 'bg-orange-50', text: 'text-orange-600' },
+                { key: 'helpline', label: 'Help Line', icon: 'fa-headset', bg: 'bg-red-50', text: 'text-red-600' }
+            ];
+
+            return `
+                <div class="space-y-4">
+                    <!-- Hero Banner -->
+                    <div class="bg-gradient-to-br from-teal-600 to-teal-800 text-white px-5 pt-3 pb-6 rounded-b-3xl shadow-sm">
+                        <p class="text-xs text-teal-100">আসসালামু আলাইকুম, <span class="font-bold text-white">${currentUser.fullName}</span></p>
+                        <h2 class="text-lg font-extrabold mt-0.5">আপনার কোন স্বাস্থ্যসেবা প্রয়োজন?</h2>
+                        <div class="mt-3 relative">
+                            <i class="fas fa-search absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                            <input type="text" onkeyup="filterHomeGrid(this.value)" placeholder="সার্ভিস খুঁজুন (যেমন: Blood, Doctor, Oxygen)..."
+                                class="w-full pl-9 pr-4 py-2.5 rounded-2xl text-xs text-slate-800 bg-white shadow-sm focus:outline-none">
+                        </div>
+                    </div>
+
+                    <!-- 12 Service Icons Grid -->
+                    <div class="px-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-xs font-extrabold text-slate-700 uppercase tracking-wider">সকল স্বাস্থ্যসেবা (12 Services)</h3>
+                            <button onclick="navigateTo('my_orders')" class="text-xs font-bold text-teal-600">আমার অর্ডারসমূহ &rarr;</button>
+                        </div>
+
+                        <div id="home-service-grid" class="grid grid-cols-3 gap-3">
+                            ${services.map(s => `
+                                <button onclick="navigateTo('service_detail', '${s.key}')" data-label="${s.label.toLowerCase()}"
+                                    class="service-tile bg-white p-3.5 rounded-2xl shadow-2xs border border-slate-200/80 hover:border-teal-500 hover:shadow-md flex flex-col items-center text-center transition active:scale-95">
+                                    <div class="w-12 h-12 ${s.bg} ${s.text} rounded-2xl flex items-center justify-center text-xl mb-2">
+                                        <i class="fas ${s.icon}"></i>
+                                    </div>
+                                    <span class="text-xs font-bold text-slate-700">${s.label}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Emergency Quick Card -->
+                    <div class="px-4 pt-1">
+                        <div class="bg-rose-600 text-white p-4 rounded-2xl flex items-center justify-between shadow-sm">
+                            <div>
+                                <span class="text-[10px] font-bold uppercase bg-white/20 px-2 py-0.5 rounded">24/7 Emergency</span>
+                                <h4 class="font-bold text-sm mt-1">জরুরি রক্ত বা অ্যাম্বুলেন্স প্রয়োজন?</h4>
+                                <p class="text-[11px] text-rose-100">সরাসরি হেল্পলাইনে যোগাযোগ করুন</p>
+                            </div>
+                            <button onclick="navigateTo('service_detail', 'helpline')" class="w-11 h-11 bg-white text-rose-600 rounded-full flex items-center justify-center shadow-md font-bold">
+                                <i class="fas fa-phone-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function filterHomeGrid(query) {
+            const q = query.toLowerCase().trim();
+            document.querySelectorAll('.service-tile').forEach(tile => {
+                const label = tile.getAttribute('data-label');
+                tile.style.display = label.includes(q) ? 'flex' : 'none';
+            });
+        }
+
+        function renderServiceDetail(serviceKey) {
+            const db = getDB();
+            const titles = {
+                consultant: 'Specialist Consultants',
+                doctor: 'Doctors Directory',
+                nurse: 'Home & Hospital Nurses',
+                test: 'Diagnostic Tests & Packages',
+                blood: 'Blood Donors Directory',
+                saline: 'Emergency Saline Service',
+                oxygen: 'Medical Oxygen Cylinders',
+                ambulance: '24/7 Ambulance Service',
+                hospital: 'Hospitals & Seat Pricing',
+                transfusion: 'Blood Transfusion Centers',
+                aya: 'Patient Caregiver / Aya',
+                helpline: 'Emergency Help Lines'
+            };
+
+            let bodyHtml = '';
+
+            if (serviceKey === 'blood') {
+                const groups = ['ALL', 'A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+                const filteredDonors = bloodFilter === 'ALL'
+                    ? db.bloodDonors
+                    : db.bloodDonors.filter(d => d.bloodGroup === bloodFilter);
+
+                bodyHtml = `
+                    <div class="flex gap-1.5 overflow-x-auto pb-2">
+                        ${groups.map(g => `
+                            <button onclick="bloodFilter='${g}'; navigateTo('service_detail', 'blood')"
+                                class="px-3 py-1.5 rounded-full text-xs font-bold shrink-0 ${bloodFilter === g ? 'bg-rose-600 text-white' : 'bg-white border border-slate-200 text-slate-700'}">
+                                ${g}
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div class="space-y-3">
+                        ${filteredDonors.length === 0 ? '<p class="text-center text-xs text-slate-400 py-8">এই গ্রুপের কোনো ডোনার পাওয়া যায়নি।</p>' : ''}
+                        ${filteredDonors.map(d => `
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 font-extrabold text-base flex items-center justify-center shrink-0">
+                                        ${d.bloodGroup}
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-slate-800 text-sm">${d.donorName}</h4>
+                                        <p class="text-xs text-slate-500"><i class="fas fa-map-marker-alt text-rose-500 mr-1"></i>${d.location}</p>
+                                        <span class="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold ${d.availability ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}">
+                                            ${d.availability ? 'Available' : 'Unavailable'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <a href="tel:${d.phone}" onclick="showToast('Calling ${d.donorName}: ${d.phone}')" class="px-3 py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold text-center">
+                                        <i class="fas fa-phone-alt mr-1"></i> Call
+                                    </a>
+                                    <button onclick="openServiceRequestModal('Blood Request (${d.bloodGroup})', 'Donor: ${d.donorName} (${d.location})', 0)" class="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl text-[11px] font-bold">
+                                        Request
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else if (serviceKey === 'consultant' || serviceKey === 'doctor') {
+                const list = serviceKey === 'consultant' ? db.consultants : db.doctors;
+                bodyHtml = list.map(doc => `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-teal-50 text-teal-700">${doc.specialization}</span>
+                                <h4 class="font-bold text-slate-800 text-sm mt-1">${doc.name}</h4>
+                                <p class="text-xs text-slate-500">${doc.degree}</p>
+                            </div>
+                            <span class="font-extrabold text-teal-700 text-sm bg-teal-50 px-2.5 py-1 rounded-xl">${doc.fees} ৳</span>
+                        </div>
+                        <div class="text-xs text-slate-600 space-y-1 pt-1 border-t border-slate-100">
+                            <p><i class="fas fa-hospital-alt text-slate-400 w-4"></i> ${doc.chamber}</p>
+                            <p><i class="fas fa-clock text-slate-400 w-4"></i> ${doc.visitingTime}</p>
+                            <p><i class="fas fa-phone text-slate-400 w-4"></i> ${doc.phone}</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-2">
+                            <a href="tel:${doc.phone}" onclick="showToast('Calling ${doc.phone}')" class="py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold text-center">Call Chamber</a>
+                            <button onclick="openServiceRequestModal('Appointment: ${doc.name}', '${doc.specialization} • ${doc.chamber}', ${doc.fees})" class="py-2 bg-teal-600 text-white rounded-xl text-xs font-bold">Book Appointment</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (serviceKey === 'nurse') {
+                bodyHtml = db.nurses.map(n => `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">${n.name}</h4>
+                                <p class="text-xs text-indigo-600 font-semibold">${n.degree} • ${n.organizationName}</p>
+                            </div>
+                            <span class="font-extrabold text-indigo-700 text-sm bg-indigo-50 px-2.5 py-1 rounded-xl">${n.fees} ৳</span>
+                        </div>
+                        <div class="text-xs text-slate-600 space-y-1 pt-1 border-t border-slate-100">
+                            <p><strong>Working:</strong> ${n.workingLocation} | <strong>Home:</strong> ${n.homeLocation}</p>
+                            <p><strong>Duty Time:</strong> ${n.dutyTime}</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <a href="tel:${n.phone}" onclick="showToast('Calling ${n.phone}')" class="py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold text-center">Call Nurse</a>
+                            <button onclick="openServiceRequestModal('Nurse Service: ${n.name}', '${n.dutyTime} (${n.organizationName})', ${n.fees})" class="py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold">Request Nurse</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (serviceKey === 'test') {
+                bodyHtml = db.tests.map(t => {
+                    const netPrice = Math.max(0, t.price - (t.discountAmount || 0));
+                    return `
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-50 text-purple-700">${t.department} (${t.subDepartment})</span>
+                                    <h4 class="font-bold text-slate-800 text-sm mt-1">${t.testName}</h4>
+                                </div>
+                                <div class="text-right">
+                                    <span class="font-extrabold text-purple-700 text-sm">${netPrice} ৳</span>
+                                    ${t.discountAmount > 0 ? `<span class="block text-[10px] line-through text-slate-400">${t.price} ৳</span>` : ''}
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-slate-500">Policy: ${t.discountPolicy} • Note: ${t.comments}</p>
+                            <button onclick="openServiceRequestModal('Diagnostic Test: ${t.testName}', '${t.department}', ${netPrice})" class="w-full py-2 bg-purple-600 text-white rounded-xl text-xs font-bold">
+                                Book Test Now
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            } else if (serviceKey === 'saline') {
+                bodyHtml = db.salines.map(s => `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">${s.name}</h4>
+                            <p class="text-xs text-slate-500">${s.details}</p>
+                            <span class="inline-block mt-1 text-xs font-extrabold text-cyan-700">${s.price} ৳ / Bag</span>
+                        </div>
+                        <button onclick="openServiceRequestModal('Emergency Saline: ${s.name}', '${s.details}', ${s.price})" class="px-4 py-2 bg-cyan-600 text-white rounded-xl text-xs font-bold shrink-0">
+                            Request
+                        </button>
+                    </div>
+                `).join('');
+            } else if (serviceKey === 'oxygen') {
+                bodyHtml = db.oxygens.map(o => `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-slate-800 text-sm">${o.cylinderSize}</h4>
+                            <span class="font-extrabold text-sky-700 text-sm bg-sky-50 px-2.5 py-1 rounded-xl">${o.price} ৳</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Available Cylinders: <strong>${o.availableQty}</strong> • Hotline: ${o.phone}</p>
+                        <button onclick="openServiceRequestModal('Oxygen Cylinder: ${o.cylinderSize}', 'Emergency Oxygen Delivery', ${o.price})" class="w-full py-2 bg-sky-600 text-white rounded-xl text-xs font-bold">
+                            Request Oxygen Cylinder
+                        </button>
+                    </div>
+                `).join('');
+            } else if (serviceKey === 'ambulance') {
+                bodyHtml = db.ambulances.map(a => `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800">${a.type}</span>
+                                <h4 class="font-bold text-slate-800 text-sm mt-1">${a.name}</h4>
+                                <p class="text-xs text-slate-500"><i class="fas fa-map-marker-alt text-amber-600 mr-1"></i>${a.address}</p>
+                            </div>
+                            <span class="text-xs font-extrabold text-amber-700">${a.fare}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <a href="tel:${a.phone}" onclick="showToast('Calling Ambulance: ${a.phone}')" class="py-2 bg-amber-500 text-white rounded-xl text-xs font-bold text-center"><i class="fas fa-phone-alt mr-1"></i> ${a.phone}</a>
+                            <button onclick="openServiceRequestModal('Ambulance: ${a.name}', '${a.address} (${a.fare})', 1500)" class="py-2 bg-slate-800 text-white rounded-xl text-xs font-bold">Book Now</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (serviceKey === 'hospital') {
+                bodyHtml = db.hospitals.map(h => `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                        <div class="flex justify-between items-center">
+                            <h4 class="font-bold text-slate-800 text-sm">${h.name}</h4>
+                            <a href="tel:${h.phone}" onclick="showToast('Calling ${h.phone}')" class="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold"><i class="fas fa-phone-alt mr-1"></i>${h.phone}</a>
+                        </div>
+                        <div class="p-2.5 bg-slate-50 rounded-xl text-xs text-slate-600 space-y-1">
+                            <p><strong>Services:</strong> ${h.servicePricing}</p>
+                            <p><strong>Seat Pricing:</strong> ${h.seatPricing}</p>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (serviceKey === 'transfusion') {
+                bodyHtml = db.transfusions.map(t => `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                        <h4 class="font-bold text-slate-800 text-sm">${t.name}</h4>
+                        <p class="text-xs text-slate-500">${t.location} • ${t.details}</p>
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <a href="tel:${t.phone}" onclick="showToast('Calling ${t.phone}')" class="py-2 bg-pink-50 text-pink-700 rounded-xl text-xs font-bold text-center">${t.phone}</a>
+                            <button onclick="openServiceRequestModal('Transfusion: ${t.name}', '${t.details}', 1000)" class="py-2 bg-pink-600 text-white rounded-xl text-xs font-bold">Request Service</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (serviceKey === 'aya') {
+                bodyHtml = db.ayas.map(a => `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h4 class="font-bold text-slate-800 text-sm">${a.name} <span class="text-xs font-normal text-slate-500">(${a.gender}, ${a.age} yrs)</span></h4>
+                                <p class="text-xs text-orange-600 font-semibold">${a.expertise}</p>
+                            </div>
+                            <span class="font-extrabold text-orange-700 text-sm bg-orange-50 px-2.5 py-1 rounded-xl">${a.fees} ৳/day</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <a href="tel:${a.phone}" onclick="showToast('Calling ${a.phone}')" class="py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold text-center">${a.phone}</a>
+                            <button onclick="openServiceRequestModal('Aya Service: ${a.name}', '${a.expertise}', ${a.fees})" class="py-2 bg-orange-600 text-white rounded-xl text-xs font-bold">Book Aya</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else if (serviceKey === 'helpline') {
+                bodyHtml = db.helplines.map(h => `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">${h.title}</h4>
+                            <p class="text-sm font-extrabold text-red-600 mt-0.5">${h.phone}</p>
+                        </div>
+                        <a href="tel:${h.phone}" onclick="showToast('Dialing ${h.phone}...')" class="w-11 h-11 rounded-full bg-red-600 text-white flex items-center justify-center shadow">
+                            <i class="fas fa-phone-alt"></i>
+                        </a>
+                    </div>
+                `).join('');
+            }
+
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <button onclick="navigateTo('patient_home')" class="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 shadow-2xs">
+                            <i class="fas fa-arrow-left text-xs"></i>
+                        </button>
+                        <h2 class="text-base font-extrabold text-slate-800">${titles[serviceKey] || 'Service Details'}</h2>
+                    </div>
+                    <div class="space-y-3">
+                        ${bodyHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function openServiceRequestModal(serviceTitle, summary, amount) {
+            openModal('Confirm Service Request', `
+                <form onsubmit="submitServiceRequest(event, '${serviceTitle.replace(/'/g, "\\'")}', '${summary.replace(/'/g, "\\'")}', ${amount})" class="space-y-3">
+                    <div class="p-3 bg-teal-50 border border-teal-200 rounded-xl">
+                        <p class="text-xs font-bold text-teal-900">${serviceTitle}</p>
+                        <p class="text-[11px] text-teal-700 mt-0.5">${summary}</p>
+                        <p class="text-sm font-extrabold text-teal-800 mt-1">Estimated Fee: ${amount} TK</p>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">Patient Name</label>
+                        <input id="req-patient-name" type="text" required value="${currentUser.fullName}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">Contact Phone</label>
+                        <input id="req-patient-phone" type="tel" required value="${currentUser.phone}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">Delivery / Pickup Address & Notes</label>
+                        <textarea id="req-patient-address" rows="2" required placeholder="আপনার বর্তমান ঠিকানা ও বিস্তারিত লিখুন..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"></textarea>
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-teal-600 text-white font-bold rounded-xl text-xs shadow">
+                        ${amount > 0 ? 'Proceed to Payment' : 'Confirm Emergency Request'}
+                    </button>
+                </form>
+            `);
+        }
+
+        function submitServiceRequest(e, serviceTitle, summary, amount) {
+            e.preventDefault();
+            const pName = document.getElementById('req-patient-name').value.trim();
+            const pPhone = document.getElementById('req-patient-phone').value.trim();
+            const pAddr = document.getElementById('req-patient-address').value.trim();
+
+            closeModal();
+
+            const orderObj = {
+                id: Date.now(),
+                orderNo: '#' + Math.floor(100000000 + Math.random() * 900000000),
+                type: 'Service Request',
+                patientName: pName,
+                contactNumber: pPhone,
+                address: pAddr,
+                items: [{ name: `${serviceTitle} (${summary})`, rate: amount }],
+                itemTotal: amount,
+                vatPercent: 0,
+                totalVat: 0,
+                discount: 0,
+                totalBill: amount,
+                payAmount: amount,
+                due: 0,
+                paymentChannel: 'Pending Selection',
+                transactionId: '',
+                status: amount === 0 ? 'Requested' : 'Pending Payment',
+                createdBy: currentUser.username,
+                createdAt: new Date().toLocaleString()
+            };
+
+            if (amount === 0) {
+                const db = getDB();
+                db.orders.unshift(orderObj);
+                saveDB(db);
+                showToast('রক্তের রিকোয়েস্ট সফলভাবে পাঠানো হয়েছে!', 'success');
+                navigateTo('my_orders');
+            } else {
+                activeOrderDraft = orderObj;
+                navigateTo('order_processing');
+            }
+        }
+
+        // =========================================================================
+        // 5. DIAGNOSTIC TEST & BILLING MODULE (Staff & Admin)
+        // =========================================================================
+        function renderDiagnosticEntry() {
+            const db = getDB();
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base font-extrabold text-slate-800">Diagnostic Test & Billing</h2>
+                        <span class="text-[11px] font-bold bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg">Order Entry</span>
+                    </div>
+
+                    <!-- Patient Information Card -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
+                        <h3 class="text-xs font-extrabold text-teal-700 uppercase">Patient Information</h3>
+                        <input id="diag-p-name" type="text" placeholder="Name" value="${diagFormState.patientName}" oninput="diagFormState.patientName=this.value"
+                            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input id="diag-p-age" type="number" placeholder="Age" value="${diagFormState.age}" oninput="diagFormState.age=this.value"
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                            <select id="diag-p-gender" onchange="diagFormState.gender=this.value" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                                <option value="Male" ${diagFormState.gender==='Male'?'selected':''}>Male</option>
+                                <option value="Female" ${diagFormState.gender==='Female'?'selected':''}>Female</option>
+                                <option value="Other" ${diagFormState.gender==='Other'?'selected':''}>Other</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="diag-p-marital" onchange="diagFormState.maritalStatus=this.value" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                                <option value="Married" ${diagFormState.maritalStatus==='Married'?'selected':''}>Married</option>
+                                <option value="Unmarried" ${diagFormState.maritalStatus==='Unmarried'?'selected':''}>Unmarried</option>
+                            </select>
+                            <select id="diag-p-blood" onchange="diagFormState.bloodGroup=this.value" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                                ${['O+','O-','A+','A-','B+','B-','AB+','AB-'].map(bg => `<option value="${bg}" ${diagFormState.bloodGroup===bg?'selected':''}>Blood: ${bg}</option>`).join('')}
+                            </select>
+                        </div>
+                        <input id="diag-p-contact" type="tel" placeholder="Contact Number" value="${diagFormState.contact}" oninput="diagFormState.contact=this.value"
+                            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <input id="diag-p-address" type="text" placeholder="Address" value="${diagFormState.address}" oninput="diagFormState.address=this.value"
+                            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                    </div>
+
+                    <!-- Doctor Information Card -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xs font-extrabold text-teal-700 uppercase">Doctor Information</h3>
+                            <span class="text-[10px] text-slate-400">Try Code: DOC-101</span>
+                        </div>
+                        <input id="diag-d-code" type="text" placeholder="Doctor Code (e.g. DOC-101)" value="${diagFormState.doctorCode}" oninput="handleDoctorCodeLookup(this.value)"
+                            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono">
+                        <input id="diag-d-name" type="text" placeholder="Name" value="${diagFormState.doctorName}" oninput="diagFormState.doctorName=this.value"
+                            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <input id="diag-d-spec" type="text" placeholder="Speciality" value="${diagFormState.doctorSpeciality}" oninput="diagFormState.doctorSpeciality=this.value"
+                            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                    </div>
+
+                    <!-- Diagnostic Test Items Card -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+                        <h3 class="text-xs font-extrabold text-teal-700 uppercase">Diagnostic Test</h3>
+                        
+                        <!-- Quick Select from Test Catalog -->
+                        <div class="flex gap-2">
+                            <select id="diag-catalog-select" class="flex-1 px-2.5 py-2 bg-teal-50 border border-teal-200 rounded-xl text-xs font-medium text-teal-900">
+                                <option value="">-- ক্যাটালগ থেকে টেস্ট সিলেক্ট করুন --</option>
+                                ${db.tests.map(t => `<option value="${t.id}">${t.testName} (${t.price} ৳)</option>`).join('')}
+                            </select>
+                            <button type="button" onclick="addCatalogTestToOrder()" class="px-3 py-2 bg-teal-600 text-white rounded-xl text-xs font-bold shrink-0">
+                                + Add
+                            </button>
+                        </div>
+
+                        <!-- Dynamic Item Rows -->
+                        <div id="diag-items-list" class="space-y-2.5">
+                            ${diagFormState.items.map((item, idx) => `
+                                <div class="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2 relative">
+                                    <div class="flex items-center gap-2">
+                                        <input type="text" placeholder="item name" value="${item.name}" oninput="updateDiagItem(${idx}, 'name', this.value)"
+                                            class="flex-1 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs">
+                                        <button type="button" onclick="removeDiagItem(${idx})" class="w-7 h-7 rounded-full border-2 border-red-500 text-red-500 hover:bg-red-50 flex items-center justify-center shrink-0" title="Remove item">
+                                            <i class="fas fa-times text-xs"></i>
+                                        </button>
+                                    </div>
+                                    <input type="number" placeholder="rate" value="${item.rate}" oninput="updateDiagItem(${idx}, 'rate', this.value)"
+                                        class="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold">
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <button type="button" onclick="addBlankDiagItem()" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold border border-slate-300">
+                                Add item
+                            </button>
+                            <button type="button" onclick="cancelDiagOrder()" class="py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold border border-rose-200">
+                                Cancel Order
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Billing Summary Card -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2.5 text-xs">
+                        <h3 class="text-xs font-extrabold text-teal-700 uppercase border-b border-slate-100 pb-2">Billing</h3>
+                        
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-slate-600">Item Total</span>
+                            <input id="bill-item-total" type="number" readonly class="w-32 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-right font-bold">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-slate-600">Total Vat (%)</span>
+                            <input id="bill-vat" type="number" value="${diagFormState.vatPercent}" oninput="diagFormState.vatPercent=Number(this.value||0); recalcDiagnosticTotals()"
+                                class="w-32 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-right font-semibold">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-slate-600">Discount (TK)</span>
+                            <input id="bill-discount" type="number" value="${diagFormState.discount}" oninput="diagFormState.discount=Number(this.value||0); recalcDiagnosticTotals()"
+                                class="w-32 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-right font-semibold text-emerald-700">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-800">Total Bill</span>
+                            <input id="bill-total" type="number" readonly class="w-32 px-3 py-1.5 bg-teal-50 border border-teal-200 rounded-lg text-right font-extrabold text-teal-900">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-blue-700">Pay Amount</span>
+                            <input id="bill-pay" type="number" value="${diagFormState.payAmount}" oninput="diagFormState.payAmount=Number(this.value||0); recalcDiagnosticTotals(false)"
+                                class="w-32 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-right font-extrabold text-blue-900">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-rose-600">Due</span>
+                            <input id="bill-due" type="number" readonly class="w-32 px-3 py-1.5 bg-rose-50 border border-rose-200 rounded-lg text-right font-extrabold text-rose-700">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 pt-3">
+                            <button type="button" onclick="finalizeDiagnosticOrder('save')" class="py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-xs shadow">
+                                Save
+                            </button>
+                            <button type="button" onclick="finalizeDiagnosticOrder('pay')" class="py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-xs shadow">
+                                Pay
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function handleDoctorCodeLookup(code) {
+            diagFormState.doctorCode = code;
+            const db = getDB();
+            const doc = db.doctors.find(d => d.code && d.code.toLowerCase() === code.trim().toLowerCase());
+            if (doc) {
+                diagFormState.doctorName = doc.name;
+                diagFormState.doctorSpeciality = doc.specialization;
+                document.getElementById('diag-d-name').value = doc.name;
+                document.getElementById('diag-d-spec').value = doc.specialization;
+                showToast(`Doctor matched: ${doc.name}`, 'success');
+            }
+        }
+
+        function addCatalogTestToOrder() {
+            const select = document.getElementById('diag-catalog-select');
+            const testId = Number(select.value);
+            if (!testId) return;
+            const db = getDB();
+            const test = db.tests.find(t => t.id === testId);
+            if (test) {
+                diagFormState.items.push({ name: test.testName, rate: test.price });
+                diagFormState.discount += (test.discountAmount || 0);
+                navigateTo('diagnostic_entry');
+                recalcDiagnosticTotals(true);
+            }
+        }
+
+        function addBlankDiagItem() {
+            diagFormState.items.push({ name: '', rate: 0 });
+            navigateTo('diagnostic_entry');
+        }
+
+        function updateDiagItem(idx, field, val) {
+            diagFormState.items[idx][field] = field === 'rate' ? Number(val || 0) : val;
+            if (field === 'rate') recalcDiagnosticTotals(true);
+        }
+
+        function removeDiagItem(idx) {
+            diagFormState.items.splice(idx, 1);
+            navigateTo('diagnostic_entry');
+            recalcDiagnosticTotals(true);
+        }
+
+        function cancelDiagOrder() {
+            diagFormState = {
+                patientName: '', age: '', gender: 'Male', maritalStatus: 'Married', bloodGroup: 'O+', contact: '', address: '',
+                doctorCode: '', doctorName: '', doctorSpeciality: '',
+                items: [{ name: '', rate: 0 }],
+                vatPercent: 0, discount: 0, payAmount: 0
+            };
+            showToast('অর্ডার ফর্ম ক্লিয়ার করা হয়েছে', 'success');
+            navigateTo('diagnostic_entry');
+        }
+
+        function recalcDiagnosticTotals(syncPay = true) {
+            const itemTotal = diagFormState.items.reduce((sum, it) => sum + Number(it.rate || 0), 0);
+            const vatAmt = Math.round((itemTotal * Number(diagFormState.vatPercent || 0)) / 100);
+            const totalBill = Math.max(0, (itemTotal + vatAmt) - Number(diagFormState.discount || 0));
+
+            if (syncPay) {
+                diagFormState.payAmount = totalBill;
+            }
+            const due = Math.max(0, totalBill - Number(diagFormState.payAmount || 0));
+
+            const elItem = document.getElementById('bill-item-total');
+            const elTotal = document.getElementById('bill-total');
+            const elPay = document.getElementById('bill-pay');
+            const elDue = document.getElementById('bill-due');
+
+            if (elItem) elItem.value = itemTotal;
+            if (elTotal) elTotal.value = totalBill;
+            if (elPay && syncPay) elPay.value = diagFormState.payAmount;
+            if (elDue) elDue.value = due;
+        }
+
+        function finalizeDiagnosticOrder(mode) {
+            if (!diagFormState.patientName.trim()) {
+                showToast('দয়া করে রোগীর নাম লিখুন!', 'error');
+                return;
+            }
+            const validItems = diagFormState.items.filter(i => i.name.trim());
+            if (validItems.length === 0) {
+                showToast('কমপক্ষে একটি টেস্ট আইটেম যুক্ত করুন!', 'error');
+                return;
+            }
+
+            const itemTotal = validItems.reduce((sum, it) => sum + Number(it.rate || 0), 0);
+            const totalVat = Math.round((itemTotal * Number(diagFormState.vatPercent || 0)) / 100);
+            const totalBill = Math.max(0, (itemTotal + totalVat) - Number(diagFormState.discount || 0));
+            const payAmount = Number(diagFormState.payAmount || 0);
+            const due = Math.max(0, totalBill - payAmount);
+
+            const orderObj = {
+                id: Date.now(),
+                orderNo: '#' + Math.floor(100000000 + Math.random() * 900000000),
+                type: 'Diagnostic Bill',
+                patientName: diagFormState.patientName,
+                patientAge: diagFormState.age,
+                gender: diagFormState.gender,
+                maritalStatus: diagFormState.maritalStatus,
+                bloodGroup: diagFormState.bloodGroup,
+                contactNumber: diagFormState.contact,
+                address: diagFormState.address,
+                doctorCode: diagFormState.doctorCode,
+                doctorName: diagFormState.doctorName,
+                doctorSpeciality: diagFormState.doctorSpeciality,
+                items: validItems,
+                itemTotal,
+                vatPercent: diagFormState.vatPercent,
+                totalVat,
+                discount: diagFormState.discount,
+                totalBill,
+                payAmount,
+                due,
+                paymentChannel: mode === 'save' ? 'Cash Counter' : 'Pending Online Payment',
+                transactionId: mode === 'save' ? 'CASH-' + Math.floor(1000 + Math.random() * 9000) : '',
+                status: mode === 'save' ? (due > 0 ? 'Partial Paid' : 'Approved') : 'Pending Payment',
+                createdBy: currentUser.username,
+                createdAt: new Date().toLocaleString()
+            };
+
+            if (mode === 'save') {
+                const db = getDB();
+                db.orders.unshift(orderObj);
+                saveDB(db);
+                showToast('ইনভয়েস সেভ হয়েছে! রসিদ প্রিন্ট বা ডাউনলোড করুন।', 'success');
+                openInvoicePrintModal(orderObj.id);
+                navigateTo('my_orders');
+            } else {
+                activeOrderDraft = orderObj;
+                navigateTo('order_processing');
+            }
+        }
+
+        // =========================================================================
+        // 6. ORDER PROCESSING & MANUAL PAYMENT FLOW
+        // =========================================================================
+        function renderOrderProcessing() {
+            const db = getDB();
+            if (!activeOrderDraft) {
+                activeOrderDraft = {
+                    id: Date.now(),
+                    orderNo: '#0123456789',
+                    type: 'Diagnostic Bill',
+                    patientName: currentUser.fullName,
+                    contactNumber: currentUser.phone,
+                    items: [{ name: 'General Checkup', rate: 1000 }],
+                    totalBill: 1000,
+                    payAmount: 1000,
+                    due: 0
+                };
+            }
+
+            const channels = db.paymentChannels;
+            const selectedCh = channels.find(c => c.id === selectedPaymentChannelId) || channels[0];
+
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base font-extrabold text-slate-800">Order Processing</h2>
+                        <button onclick="navigateHome()" class="px-3 py-1 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600">Cancel</button>
+                    </div>
+
+                    <!-- Order Summary Box -->
+                    <div class="bg-slate-800 text-white p-4 rounded-2xl shadow-sm flex justify-between items-center">
+                        <div>
+                            <p class="text-xs text-slate-300">Order No: <span class="font-mono font-bold text-white">${activeOrderDraft.orderNo}</span></p>
+                            <p class="text-lg font-extrabold text-teal-400 mt-0.5">Payable Amount: ${activeOrderDraft.payAmount.toLocaleString()} TK</p>
+                        </div>
+                        <i class="fas fa-shield-alt text-3xl text-slate-600"></i>
+                    </div>
+
+                    <!-- Select Payment Channel Grid -->
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+                        <h3 class="text-xs font-extrabold text-slate-700 uppercase">Select Payment Channel</h3>
+                        <div class="grid grid-cols-3 gap-2">
+                            ${channels.map(ch => `
+                                <button type="button" onclick="selectedPaymentChannelId=${ch.id}; navigateTo('order_processing')"
+                                    class="p-2.5 rounded-2xl border-2 flex flex-col items-center text-center transition ${selectedCh && selectedCh.id === ch.id ? 'border-teal-600 bg-teal-50/60 shadow-xs' : 'border-slate-100 bg-slate-50 hover:border-slate-300'}">
+                                    <div class="w-9 h-9 ${ch.color || 'bg-teal-600'} text-white rounded-xl flex items-center justify-center text-sm mb-1.5">
+                                        <i class="fas ${ch.icon || 'fa-wallet'}"></i>
+                                    </div>
+                                    <span class="text-[11px] font-extrabold text-slate-800 leading-tight">${ch.channelName}</span>
+                                    <span class="text-[10px] font-semibold text-slate-500">${ch.channelType}</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- How to Pay Instructions & Account Copy -->
+                    ${selectedCh ? `
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+                            <h3 class="text-xs font-extrabold text-slate-700 border-b border-slate-100 pb-2">Information: How to pay the bill</h3>
+                            <ol class="text-[11px] text-slate-600 space-y-1 list-decimal list-inside leading-relaxed">
+                                <li>Copy the Account Number below</li>
+                                <li>Follow the Payment Method (<strong>${selectedCh.method}</strong>)</li>
+                                <li>Go to your <strong>${selectedCh.channelName}</strong> app / bank</li>
+                                <li>Pay the 'Payable Amount' (<strong>${activeOrderDraft.payAmount} TK</strong>)</li>
+                                <li>Copy the transaction number (TrxID)</li>
+                                <li>Select <strong>"Proceed to payment"</strong> below</li>
+                                <li>Paste 'transaction number'</li>
+                                <li>Select <strong>"SUBMIT"</strong></li>
+                            </ol>
+
+                            <div class="pt-2 border-t border-slate-100 space-y-2">
+                                <div>
+                                    <label class="text-[11px] font-bold text-slate-500 block mb-1">Account Number</label>
+                                    <div class="flex gap-2">
+                                        <input id="copy-acc-input" type="text" readonly value="${selectedCh.accountNumber}"
+                                            class="flex-1 px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono font-bold text-slate-800">
+                                        <button type="button" onclick="copyAccountNumber('${selectedCh.accountNumber}')"
+                                            class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold">
+                                            Copy
+                                        </button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="text-[11px] font-bold text-slate-500 block mb-1">Payment Method</label>
+                                    <div class="w-full py-2 bg-rose-50 border border-rose-200 rounded-xl text-center text-xs font-extrabold text-rose-600">
+                                        ${selectedCh.method} (${selectedCh.channelName} ${selectedCh.channelType})
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="activeOrderDraft.paymentChannel='${selectedCh.channelName} (${selectedCh.channelType})'; navigateTo('submit_trx')"
+                            class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-2xl text-sm shadow-lg shadow-teal-200">
+                            Proceed to payment
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function copyAccountNumber(acc) {
+            const input = document.getElementById('copy-acc-input');
+            if (input) {
+                input.select();
+                document.execCommand('copy');
+            }
+            showToast(`Copied: ${acc}`, 'success');
+        }
+
+        function renderSubmitTransaction() {
+            return `
+                <div class="p-5 flex flex-col justify-between min-h-[70vh]">
+                    <div class="flex justify-end">
+                        <button onclick="navigateTo('order_processing')" class="px-4 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-700 shadow-2xs">
+                            BACK
+                        </button>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 my-auto">
+                        <div class="text-center">
+                            <span class="px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-xs font-bold">${activeOrderDraft?.paymentChannel || 'Mobile Banking'}</span>
+                            <h3 class="text-base font-extrabold text-slate-800 mt-2">Verify Your Payment</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Order: ${activeOrderDraft?.orderNo} • Amount: <strong>${activeOrderDraft?.payAmount} TK</strong></p>
+                        </div>
+
+                        <form onsubmit="handleTransactionSubmit(event)" class="space-y-4">
+                            <div>
+                                <input id="trx-id-input" type="text" required placeholder="Paste your transaction number"
+                                    class="w-full px-4 py-3.5 bg-slate-50 border-2 border-slate-200 focus:border-teal-600 rounded-2xl text-center text-sm font-mono font-bold uppercase focus:outline-none">
+                            </div>
+                            <button type="submit" class="w-full py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-extrabold rounded-2xl text-sm shadow-md tracking-wide">
+                                SUBMIT
+                            </button>
+                        </form>
+                    </div>
+                    <div></div>
+                </div>
+            `;
+        }
+
+        function handleTransactionSubmit(e) {
+            e.preventDefault();
+            const trx = document.getElementById('trx-id-input').value.trim().toUpperCase();
+            if (!trx) return;
+
+            const db = getDB();
+            activeOrderDraft.transactionId = trx;
+            activeOrderDraft.status = 'Pending Verification';
+            db.orders.unshift(activeOrderDraft);
+            saveDB(db);
+
+            const savedId = activeOrderDraft.id;
+            activeOrderDraft = null;
+
+            showToast('পেমেন্ট তথ্য জমা হয়েছে! ইনভয়েস তৈরি হয়েছে।', 'success');
+            navigateTo('my_orders');
+            openInvoicePrintModal(savedId);
+        }
+
+        // =========================================================================
+        // 7. ORDERS, INVOICES, PDF & BLUETOOTH THERMAL PRINT RECEIPT
+        // =========================================================================
+        function renderOrdersAndInvoices() {
+            const db = getDB();
+            const isAdminOrStaff = currentUser.role === 'admin' || currentUser.role === 'staff';
+            const orders = isAdminOrStaff
+                ? db.orders
+                : db.orders.filter(o => o.createdBy === currentUser.username || o.contactNumber === currentUser.phone);
+
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-base font-extrabold text-slate-800">${isAdminOrStaff ? 'All Invoices & Verifications' : 'My Orders & Invoices'}</h2>
+                        <span class="text-xs font-bold text-teal-600">${orders.length} Records</span>
+                    </div>
+
+                    ${orders.length === 0 ? `
+                        <div class="bg-white p-8 rounded-2xl text-center border border-slate-200">
+                            <i class="fas fa-receipt text-3xl text-slate-300 mb-2"></i>
+                            <p class="text-xs text-slate-500">এখনো কোনো অর্ডার বা ইনভয়েস পাওয়া যায়নি।</p>
+                        </div>
+                    ` : ''}
+
+                    <div class="space-y-3">
+                        ${orders.map(o => `
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <span class="font-mono text-xs font-extrabold text-slate-800">${o.orderNo}</span>
+                                        <span class="ml-1.5 text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">${o.type}</span>
+                                        <h4 class="font-bold text-sm text-slate-800 mt-1">${o.patientName}</h4>
+                                        <p class="text-[11px] text-slate-500">${o.createdAt}</p>
+                                    </div>
+                                    <span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold ${
+                                        o.status === 'Approved' ? 'bg-emerald-100 text-emerald-700' :
+                                        o.status === 'Rejected' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'
+                                    }">${o.status}</span>
+                                </div>
+
+                                <div class="p-2.5 bg-slate-50 rounded-xl text-xs flex justify-between items-center">
+                                    <div>
+                                        <p class="text-slate-500">Total: <strong class="text-slate-800">${o.totalBill} ৳</strong> | Paid: <strong class="text-emerald-700">${o.payAmount} ৳</strong></p>
+                                        ${o.transactionId ? `<p class="text-[11px] font-mono text-blue-700 mt-0.5">TrxID: ${o.transactionId} (${o.paymentChannel})</p>` : ''}
+                                    </div>
+                                    ${o.due > 0 ? `<span class="text-xs font-extrabold text-rose-600">Due: ${o.due} ৳</span>` : ''}
+                                </div>
+
+                                <!-- Admin Verification Controls -->
+                                ${isAdminOrStaff && o.status === 'Pending Verification' ? `
+                                    <div class="grid grid-cols-2 gap-2 pt-1">
+                                        <button onclick="updateOrderStatus(${o.id}, 'Approved')" class="py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-bold">
+                                            <i class="fas fa-check mr-1"></i> Approve Trx
+                                        </button>
+                                        <button onclick="updateOrderStatus(${o.id}, 'Rejected')" class="py-1.5 bg-rose-600 text-white rounded-xl text-xs font-bold">
+                                            <i class="fas fa-times mr-1"></i> Reject
+                                        </button>
+                                    </div>
+                                ` : ''}
+
+                                <!-- Due Collection for Staff/Admin -->
+                                ${isAdminOrStaff && o.due > 0 ? `
+                                    <button onclick="collectOrderDue(${o.id})" class="w-full py-1.5 bg-amber-500 text-white rounded-xl text-xs font-bold">
+                                        Collect Due (${o.due} ৳)
+                                    </button>
+                                ` : ''}
+
+                                <!-- PDF & Thermal Print Actions -->
+                                <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                                    <button onclick="openInvoicePrintModal(${o.id}, 'a4')" class="py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+                                        <i class="fas fa-file-pdf text-rose-600"></i> PDF / View
+                                    </button>
+                                    <button onclick="openInvoicePrintModal(${o.id}, 'thermal')" class="py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+                                        <i class="fas fa-print"></i> BT Thermal Print
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            const db = getDB();
+            const order = db.orders.find(o => o.id === orderId);
+            if (order) {
+                order.status = newStatus;
+                saveDB(db);
+                showToast(`Order marked as ${newStatus}`, 'success');
+                navigateTo('my_orders');
+            }
+        }
+
+        function collectOrderDue(orderId) {
+            const db = getDB();
+            const order = db.orders.find(o => o.id === orderId);
+            if (order) {
+                order.payAmount = order.totalBill;
+                order.due = 0;
+                order.status = 'Approved';
+                saveDB(db);
+                showToast('বকেয়া টাকা আদায় সম্পন্ন হয়েছে!', 'success');
+                navigateTo('my_orders');
+            }
+        }
+
+        function openInvoicePrintModal(orderId, mode = 'a4') {
+            const db = getDB();
+            const o = db.orders.find(x => x.id === orderId);
+            if (!o) return;
+
+            const isThermal = mode === 'thermal';
+
+            openModal(isThermal ? 'Bluetooth Thermal Receipt (58mm/80mm)' : 'Invoice & PDF Receipt', `
+                <div class="space-y-3">
+                    <!-- Format Toggle -->
+                    <div class="flex gap-2 no-print">
+                        <button onclick="openInvoicePrintModal(${o.id}, 'a4')" class="flex-1 py-1.5 rounded-xl text-xs font-bold ${!isThermal ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-700'}">Standard PDF Invoice</button>
+                        <button onclick="openInvoicePrintModal(${o.id}, 'thermal')" class="flex-1 py-1.5 rounded-xl text-xs font-bold ${isThermal ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'}">Thermal POS (58mm)</button>
+                    </div>
+
+                    <!-- Printable Receipt Container -->
+                    <div id="print-area" class="${isThermal ? 'max-w-[270px] mx-auto font-mono text-[11px] border-2 border-dashed border-slate-300 p-3 bg-amber-50/30' : 'p-4 border border-slate-200 rounded-2xl bg-white text-xs'} space-y-2">
+                        <div class="text-center border-b border-dashed border-slate-300 pb-2">
+                            <h4 class="font-extrabold text-sm uppercase">BD Health Zone</h4>
+                            <p class="text-[10px] text-slate-500">Digital Healthcare & Diagnostic Center</p>
+                            <p class="text-[10px] text-slate-500">Dhaka, Bangladesh • Helpline: 16263</p>
+                        </div>
+
+                        <div class="flex justify-between text-[11px]">
+                            <span><strong>Order:</strong> ${o.orderNo}</span>
+                            <span>${o.status}</span>
+                        </div>
+                        <div class="text-[11px] space-y-0.5 border-b border-dashed border-slate-300 pb-2">
+                            <p><strong>Patient:</strong> ${o.patientName} ${o.patientAge ? `(${o.patientAge}Y/${o.gender})` : ''}</p>
+                            <p><strong>Phone:</strong> ${o.contactNumber || 'N/A'}</p>
+                            ${o.doctorName ? `<p><strong>Ref. Doctor:</strong> ${o.doctorName}</p>` : ''}
+                            <p><strong>Date:</strong> ${o.createdAt}</p>
+                        </div>
+
+                        <table class="w-full text-left border-b border-dashed border-slate-300 pb-2">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-[10px] uppercase text-slate-500">
+                                    <th class="py-1">Item / Service</th>
+                                    <th class="py-1 text-right">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${(o.items || []).map(it => `
+                                    <tr>
+                                        <td class="py-1 pr-2">${it.name}</td>
+                                        <td class="py-1 text-right font-semibold">${it.rate} ৳</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+
+                        <div class="space-y-1 text-[11px] pt-1">
+                            <div class="flex justify-between"><span>Item Total:</span><span>${o.itemTotal} ৳</span></div>
+                            ${o.totalVat ? `<div class="flex justify-between"><span>VAT (${o.vatPercent}%):</span><span>${o.totalVat} ৳</span></div>` : ''}
+                            ${o.discount ? `<div class="flex justify-between"><span>Discount:</span><span>-${o.discount} ৳</span></div>` : ''}
+                            <div class="flex justify-between font-extrabold text-xs border-t border-slate-200 pt-1"><span>Total Bill:</span><span>${o.totalBill} ৳</span></div>
+                            <div class="flex justify-between text-emerald-700 font-bold"><span>Paid (${o.paymentChannel}):</span><span>${o.payAmount} ৳</span></div>
+                            <div class="flex justify-between text-rose-600 font-bold"><span>Due Amount:</span><span>${o.due} ৳</span></div>
+                            ${o.transactionId ? `<p class="text-[10px] text-slate-500 pt-1">TrxID: ${o.transactionId}</p>` : ''}
+                        </div>
+
+                        <div class="text-center text-[10px] text-slate-400 pt-2 border-t border-dashed border-slate-300">
+                            Thank you for choosing BD Health Zone!
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="grid grid-cols-2 gap-2 no-print pt-1">
+                        <button onclick="window.print()" class="py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow">
+                            <i class="fas fa-download"></i> Download PDF
+                        </button>
+                        <button onclick="simulateBluetoothPrint()" class="py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow">
+                            <i class="fab fa-bluetooth-b"></i> BT Thermal Print
+                        </button>
+                    </div>
+                </div>
+            `);
+        }
+
+        function simulateBluetoothPrint() {
+            showToast('Connecting to Bluetooth Thermal Printer (ESC/POS)...', 'success');
+            setTimeout(() => {
+                window.print();
+            }, 600);
+        }
+
+        // =========================================================================
+        // 8. SUPER ADMIN SETTINGS & 11-MODULE DYNAMIC CMS (Add / Edit / Delete)
+        // =========================================================================
+        function renderAdminSettingsDashboard() {
+            const menuItems = [
+                { label: 'Dashboard (Sales & Summary)', icon: 'fa-chart-line', color: 'text-teal-600', action: "navigateTo('admin_sales')" },
+                { label: 'Service CMS (11 Modules Add/Edit/Del)', icon: 'fa-database', color: 'text-blue-600', action: "navigateTo('admin_cms')" },
+                { label: 'Order Entry (Diagnostic Billing)', icon: 'fa-file-medical', color: 'text-purple-600', action: "navigateTo('diagnostic_entry')" },
+                { label: 'Profile Setting', icon: 'fa-user-cog', color: 'text-slate-600', action: "navigateTo('profile')" },
+                { label: 'Payment Channel', icon: 'fa-wallet', color: 'text-pink-600', action: "navigateTo('admin_payments')" },
+                { label: 'User Management', icon: 'fa-users-cog', color: 'text-indigo-600', action: "navigateTo('admin_users')" },
+                { label: 'Diagnostic Test Catalog', icon: 'fa-vials', color: 'text-cyan-600', action: "navigateTo('admin_cms', 'tests')" },
+                { label: 'Invoice & Trx Verification', icon: 'fa-receipt', color: 'text-amber-600', action: "navigateTo('my_orders')" },
+                { label: 'Sales Report', icon: 'fa-coins', color: 'text-emerald-600', action: "navigateTo('admin_sales')" },
+                { label: 'Cancel / Back to Patient View', icon: 'fa-times-circle', color: 'text-rose-600', action: "navigateTo('patient_home')" }
+            ];
+
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="text-center py-2">
+                        <h2 class="text-xl font-extrabold text-slate-800">Setting</h2>
+                        <p class="text-xs text-slate-500">Super Admin Control Panel</p>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        ${menuItems.map(item => `
+                            <button onclick="${item.action}" class="w-full py-3.5 px-4 bg-white hover:bg-teal-50 border border-slate-200 hover:border-teal-400 rounded-2xl shadow-2xs flex items-center justify-between text-left transition">
+                                <span class="flex items-center gap-3 font-bold text-sm text-slate-800">
+                                    <i class="fas ${item.icon} ${item.color} w-5 text-center"></i>
+                                    ${item.label}
+                                </span>
+                                <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Configuration for all 11 Admin CMS Modules requested by User
+        const cmsSchemas = {
+            consultants: {
+                title: '1. Consultants',
+                fields: [
+                    { key: 'name', label: 'Name', type: 'text', required: true },
+                    { key: 'specialization', label: 'Specialization / Department', type: 'text', required: true },
+                    { key: 'degree', label: 'Degree', type: 'text', required: true },
+                    { key: 'phone', label: 'Phone', type: 'tel', required: true },
+                    { key: 'chamber', label: 'Chamber', type: 'text', required: true },
+                    { key: 'visitingTime', label: 'Visiting Time', type: 'text', required: true },
+                    { key: 'fees', label: 'Fees (TK)', type: 'number', required: true }
+                ],
+                summary: item => `<strong>${item.name}</strong> (${item.specialization})<br><span class="text-slate-500">${item.degree} • ${item.fees} ৳ • ${item.phone}</span>`
+            },
+            doctors: {
+                title: '2. Doctors',
+                fields: [
+                    { key: 'code', label: 'Doctor Code (e.g. DOC-104)', type: 'text', required: true },
+                    { key: 'name', label: 'Name', type: 'text', required: true },
+                    { key: 'specialization', label: 'Specialization / Department', type: 'text', required: true },
+                    { key: 'degree', label: 'Degree', type: 'text', required: true },
+                    { key: 'phone', label: 'Phone', type: 'tel', required: true },
+                    { key: 'chamber', label: 'Chamber', type: 'text', required: true },
+                    { key: 'visitingTime', label: 'Visiting Time', type: 'text', required: true },
+                    { key: 'fees', label: 'Fees (TK)', type: 'number', required: true }
+                ],
+                summary: item => `<strong>[${item.code}] ${item.name}</strong> (${item.specialization})<br><span class="text-slate-500">${item.chamber} • ${item.fees} ৳</span>`
+            },
+            nurses: {
+                title: '3. Nurses',
+                fields: [
+                    { key: 'name', label: 'Name', type: 'text', required: true },
+                    { key: 'degree', label: 'Degree', type: 'text', required: true },
+                    { key: 'phone', label: 'Phone', type: 'tel', required: true },
+                    { key: 'workingLocation', label: 'Working Location', type: 'text', required: true },
+                    { key: 'homeLocation', label: 'Home Location', type: 'text', required: true },
+                    { key: 'organizationName', label: 'Organization Name', type: 'text', required: true },
+                    { key: 'dutyTime', label: 'Duty Time', type: 'text', required: true },
+                    { key: 'fees', label: 'Fees (TK)', type: 'number', required: true }
+                ],
+                summary: item => `<strong>${item.name}</strong> (${item.degree})<br><span class="text-slate-500">${item.organizationName} • ${item.dutyTime} • ${item.fees} ৳</span>`
+            },
+            tests: {
+                title: '4. Diagnostic Tests',
+                fields: [
+                    { key: 'testName', label: 'Test Name', type: 'text', required: true },
+                    { key: 'department', label: 'Department', type: 'text', required: true },
+                    { key: 'subDepartment', label: 'Sub Department', type: 'text', required: true },
+                    { key: 'price', label: 'Price (TK)', type: 'number', required: true },
+                    { key: 'discountPolicy', label: 'Discount Policy', type: 'text', required: false },
+                    { key: 'discountAmount', label: 'Discount Amount (TK)', type: 'number', required: false },
+                    { key: 'comments', label: 'Comments', type: 'text', required: false }
+                ],
+                summary: item => `<strong>${item.testName}</strong> (${item.department})<br><span class="text-slate-500">Price: ${item.price} ৳ | Disc: ${item.discountAmount || 0} ৳ (${item.discountPolicy || 'None'})</span>`
+            },
+            bloodDonors: {
+                title: '5. Blood Donors',
+                fields: [
+                    { key: 'donorName', label: 'Donor Name', type: 'text', required: true },
+                    { key: 'bloodGroup', label: 'Blood Group (e.g. O+, A+)', type: 'text', required: true },
+                    { key: 'phone', label: 'Phone', type: 'tel', required: true },
+                    { key: 'location', label: 'Location', type: 'text', required: true },
+                    { key: 'availability', label: 'Availability', type: 'selectBool' }
+                ],
+                summary: item => `<strong>${item.donorName}</strong> <span class="px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded font-bold">${item.bloodGroup}</span><br><span class="text-slate-500">${item.location} • ${item.phone} • ${item.availability ? 'Available' : 'Unavailable'}</span>`
+            },
+            oxygens: {
+                title: '6. Oxygen Cylinders',
+                fields: [
+                    { key: 'cylinderSize', label: 'Cylinder Size & Description', type: 'text', required: true },
+                    { key: 'price', label: 'Price (TK)', type: 'number', required: true },
+                    { key: 'availableQty', label: 'Available Quantity', type: 'number', required: true },
+                    { key: 'phone', label: 'Supplier Phone', type: 'tel', required: true }
+                ],
+                summary: item => `<strong>${item.cylinderSize}</strong><br><span class="text-slate-500">Price: ${item.price} ৳ | Stock: ${item.availableQty} | ${item.phone}</span>`
+            },
+            ambulances: {
+                title: '7. Ambulances',
+                fields: [
+                    { key: 'name', label: 'Ambulance Name', type: 'text', required: true },
+                    { key: 'address', label: 'Address / Stand Location', type: 'text', required: true },
+                    { key: 'phone', label: 'Phone', type: 'tel', required: true },
+                    { key: 'fare', label: 'Fare (e.g. 1500 TK)', type: 'text', required: true },
+                    { key: 'type', label: 'Type (AC / Non-AC / ICU)', type: 'text', required: true }
+                ],
+                summary: item => `<strong>${item.name}</strong> (${item.type})<br><span class="text-slate-500">${item.address} • ${item.fare} • ${item.phone}</span>`
+            },
+            hospitals: {
+                title: '8. Hospitals',
+                fields: [
+                    { key: 'name', label: 'Hospital Name', type: 'text', required: true },
+                    { key: 'phone', label: 'Phone Number', type: 'tel', required: true },
+                    { key: 'servicePricing', label: 'Service Pricing Details', type: 'text', required: true },
+                    { key: 'seatPricing', label: 'Seat Pricing (Ward/Cabin/ICU)', type: 'text', required: true }
+                ],
+                summary: item => `<strong>${item.name}</strong> (${item.phone})<br><span class="text-slate-500">${item.seatPricing}</span>`
+            },
+            transfusions: {
+                title: '9. Transfusion Services',
+                fields: [
+                    { key: 'name', label: 'Center / Service Name', type: 'text', required: true },
+                    { key: 'phone', label: 'Phone', type: 'tel', required: true },
+                    { key: 'location', label: 'Location', type: 'text', required: true },
+                    { key: 'details', label: 'Service Details', type: 'text', required: true }
+                ],
+                summary: item => `<strong>${item.name}</strong> (${item.phone})<br><span class="text-slate-500">${item.location} • ${item.details}</span>`
+            },
+            ayas: {
+                title: '10. Aya / Caregivers',
+                fields: [
+                    { key: 'name', label: 'Aya Name', type: 'text', required: true },
+                    { key: 'phone', label: 'Phone', type: 'tel', required: true },
+                    { key: 'gender', label: 'Gender (Female/Male)', type: 'text', required: true },
+                    { key: 'age', label: 'Age', type: 'number', required: true },
+                    { key: 'expertise', label: 'Expertise', type: 'text', required: true },
+                    { key: 'fees', label: 'Daily Fees (TK)', type: 'number', required: true }
+                ],
+                summary: item => `<strong>${item.name}</strong> (${item.gender}, ${item.age} yrs)<br><span class="text-slate-500">${item.expertise} • ${item.fees} ৳/day</span>`
+            },
+            helplines: {
+                title: '11. Help Line Numbers',
+                fields: [
+                    { key: 'title', label: 'Helpline Service Title', type: 'text', required: true },
+                    { key: 'phone', label: 'Phone Number', type: 'tel', required: true }
+                ],
+                summary: item => `<strong>${item.title}</strong><br><span class="text-red-600 font-bold">${item.phone}</span>`
+            }
+        };
+
+        function renderAdminCMS() {
+            const db = getDB();
+            const schema = cmsSchemas[activeCmsTab] || cmsSchemas.consultants;
+            const list = db[activeCmsTab] || [];
+
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <button onclick="navigateTo('admin_dashboard')" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600">
+                                <i class="fas fa-arrow-left text-xs"></i>
+                            </button>
+                            <h2 class="text-base font-extrabold text-slate-800">Admin CMS Manager</h2>
+                        </div>
+                        <button onclick="openCmsFormModal('${activeCmsTab}')" class="px-3 py-1.5 bg-teal-600 text-white rounded-xl text-xs font-bold shadow">
+                            + Add New
+                        </button>
+                    </div>
+
+                    <!-- Horizontal Scrollable Category Tabs (All 11 Modules) -->
+                    <div class="flex gap-1.5 overflow-x-auto pb-2 app-scroll">
+                        ${Object.keys(cmsSchemas).map(key => `
+                            <button onclick="activeCmsTab='${key}'; navigateTo('admin_cms')"
+                                class="px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition ${activeCmsTab === key ? 'bg-slate-900 text-white shadow-xs' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'}">
+                                ${cmsSchemas[key].title}
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <!-- Items List with Edit & Delete -->
+                    <div class="space-y-2.5">
+                        ${list.length === 0 ? '<p class="text-center text-xs text-slate-400 py-8 bg-white rounded-2xl border border-slate-200">কোনো ডাটা পাওয়া যায়নি। "+ Add New" বাটনে ক্লিক করে যুক্ত করুন।</p>' : ''}
+                        ${list.map(item => `
+                            <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between gap-3">
+                                <div class="text-xs leading-relaxed">
+                                    ${schema.summary(item)}
+                                </div>
+                                <div class="flex flex-col gap-1.5 shrink-0">
+                                    <button onclick="openCmsFormModal('${activeCmsTab}', ${item.id})" class="px-3 py-1 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-[11px] font-bold">
+                                        EDIT
+                                    </button>
+                                    <button onclick="deleteCmsRecord('${activeCmsTab}', ${item.id})" class="px-3 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg text-[11px] font-bold">
+                                        DELETE
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function openCmsFormModal(tabKey, editId = null) {
+            const db = getDB();
+            const schema = cmsSchemas[tabKey];
+            const existing = editId ? (db[tabKey] || []).find(x => x.id === editId) : null;
+
+            const fieldsHtml = schema.fields.map(f => {
+                const val = existing ? existing[f.key] : '';
+                if (f.type === 'selectBool') {
+                    return `
+                        <div>
+                            <label class="text-xs font-bold text-slate-600 block mb-1">${f.label}</label>
+                            <select id="cms-field-${f.key}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                                <option value="true" ${val === true || val === '' ? 'selected' : ''}>Available</option>
+                                <option value="false" ${val === false ? 'selected' : ''}>Unavailable</option>
+                            </select>
+                        </div>
+                    `;
+                }
+                return `
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">${f.label}</label>
+                        <input id="cms-field-${f.key}" type="${f.type}" ${f.required ? 'required' : ''} value="${val ?? ''}"
+                            class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                    </div>
+                `;
+            }).join('');
+
+            openModal(`${existing ? 'Edit' : 'Add'} ${schema.title}`, `
+                <form onsubmit="saveCmsRecord(event, '${tabKey}', ${editId})" class="space-y-3">
+                    ${fieldsHtml}
+                    <div class="grid grid-cols-2 gap-2 pt-2">
+                        <button type="button" onclick="closeModal()" class="py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">Cancel</button>
+                        <button type="submit" class="py-2.5 bg-teal-600 text-white rounded-xl text-xs font-bold shadow">Save Data</button>
+                    </div>
+                </form>
+            `);
+        }
+
+        function saveCmsRecord(e, tabKey, editId) {
+            e.preventDefault();
+            const db = getDB();
+            const schema = cmsSchemas[tabKey];
+            const record = editId ? { ...db[tabKey].find(x => x.id === editId) } : { id: Date.now() };
+
+            schema.fields.forEach(f => {
+                const el = document.getElementById(`cms-field-${f.key}`);
+                if (!el) return;
+                if (f.type === 'number') record[f.key] = Number(el.value || 0);
+                else if (f.type === 'selectBool') record[f.key] = el.value === 'true';
+                else record[f.key] = el.value.trim();
+            });
+
+            if (editId) {
+                const idx = db[tabKey].findIndex(x => x.id === editId);
+                if (idx !== -1) db[tabKey][idx] = record;
+            } else {
+                db[tabKey].unshift(record);
+            }
+
+            saveDB(db);
+            closeModal();
+            showToast(`${schema.title} সফলভাবে সেভ হয়েছে!`, 'success');
+            navigateTo('admin_cms', tabKey);
+        }
+
+        function deleteCmsRecord(tabKey, id) {
+            const db = getDB();
+            db[tabKey] = (db[tabKey] || []).filter(x => x.id !== id);
+            saveDB(db);
+            showToast('রেকর্ডটি ডিলিট করা হয়েছে।', 'success');
+            navigateTo('admin_cms', tabKey);
+        }
+
+        // =========================================================================
+        // 9. ADMIN PAYMENT CHANNEL MANAGEMENT (Screens 8 & 9 from Design)
+        // =========================================================================
+        function renderAdminPaymentChannels() {
+            const db = getDB();
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="flex items-center gap-2">
+                        <button onclick="navigateTo('admin_dashboard')" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600">
+                            <i class="fas fa-arrow-left text-xs"></i>
+                        </button>
+                        <h2 class="text-base font-extrabold text-slate-800">Setting: Payment Channel</h2>
+                    </div>
+
+                    <!-- Add New Payment Channel Form -->
+                    <form onsubmit="addPaymentChannel(event)" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
+                        <h3 class="text-xs font-extrabold text-teal-700 uppercase">Add New Channel</h3>
+                        <input id="pc-name" type="text" required placeholder="Channel Name (e.g. bKash, Dutch Bangla Bank)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <input id="pc-type" type="text" required placeholder="Channel Type (e.g. Personal, Agent, Bank Account)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <input id="pc-method" type="text" required placeholder="Method (e.g. Send Money, Cash Out, Bank Deposit)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <input id="pc-acc" type="text" required placeholder="Account Number" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono">
+                        <div class="grid grid-cols-2 gap-2 pt-1">
+                            <button type="submit" class="py-2.5 bg-teal-600 text-white rounded-xl text-xs font-bold shadow">Add</button>
+                            <button type="reset" class="py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold border border-slate-200">Clear</button>
+                        </div>
+                    </form>
+
+                    <!-- Channel List -->
+                    <div class="space-y-2.5">
+                        <h3 class="text-xs font-extrabold text-slate-700 uppercase px-1">Channel List</h3>
+                        ${db.paymentChannels.map(ch => `
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                                <div class="text-xs space-y-1">
+                                    <p><span class="text-slate-400 w-16 inline-block">Name:</span> <strong>${ch.channelName}</strong></p>
+                                    <p><span class="text-slate-400 w-16 inline-block">Type:</span> <strong>${ch.channelType}</strong></p>
+                                    <p><span class="text-slate-400 w-16 inline-block">Method:</span> <strong>${ch.method}</strong></p>
+                                    <p><span class="text-slate-400 w-16 inline-block">Account:</span> <strong class="font-mono text-teal-700">${ch.accountNumber}</strong></p>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2 pt-1">
+                                    <button onclick="editPaymentChannelModal(${ch.id})" class="py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold border border-slate-300">EDIT</button>
+                                    <button onclick="deletePaymentChannel(${ch.id})" class="py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold border border-rose-200">DELETE</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function addPaymentChannel(e) {
+            e.preventDefault();
+            const db = getDB();
+            db.paymentChannels.push({
+                id: Date.now(),
+                channelName: document.getElementById('pc-name').value.trim(),
+                channelType: document.getElementById('pc-type').value.trim(),
+                method: document.getElementById('pc-method').value.trim(),
+                accountNumber: document.getElementById('pc-acc').value.trim(),
+                color: 'bg-teal-600',
+                icon: 'fa-wallet'
+            });
+            saveDB(db);
+            showToast('নতুন পেমেন্ট চ্যানেল যুক্ত হয়েছে!', 'success');
+            navigateTo('admin_payments');
+        }
+
+        function editPaymentChannelModal(id) {
+            const db = getDB();
+            const ch = db.paymentChannels.find(x => x.id === id);
+            if (!ch) return;
+
+            openModal('Edit Payment Channel', `
+                <form onsubmit="updatePaymentChannel(event, ${id})" class="space-y-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600">Channel Name</label>
+                        <input id="edit-pc-name" type="text" required value="${ch.channelName}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs mt-1">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600">Channel Type</label>
+                        <input id="edit-pc-type" type="text" required value="${ch.channelType}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs mt-1">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600">Method</label>
+                        <input id="edit-pc-method" type="text" required value="${ch.method}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs mt-1">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600">Account Number</label>
+                        <input id="edit-pc-acc" type="text" required value="${ch.accountNumber}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono mt-1">
+                    </div>
+                    <button type="submit" class="w-full py-2.5 bg-teal-600 text-white rounded-xl text-xs font-bold">Update Channel</button>
+                </form>
+            `);
+        }
+
+        function updatePaymentChannel(e, id) {
+            e.preventDefault();
+            const db = getDB();
+            const ch = db.paymentChannels.find(x => x.id === id);
+            if (ch) {
+                ch.channelName = document.getElementById('edit-pc-name').value.trim();
+                ch.channelType = document.getElementById('edit-pc-type').value.trim();
+                ch.method = document.getElementById('edit-pc-method').value.trim();
+                ch.accountNumber = document.getElementById('edit-pc-acc').value.trim();
+                saveDB(db);
+            }
+            closeModal();
+            showToast('পেমেন্ট চ্যানেল আপডেট হয়েছে!', 'success');
+            navigateTo('admin_payments');
+        }
+
+        function deletePaymentChannel(id) {
+            const db = getDB();
+            db.paymentChannels = db.paymentChannels.filter(x => x.id !== id);
+            saveDB(db);
+            showToast('পেমেন্ট চ্যানেল ডিলিট হয়েছে।', 'success');
+            navigateTo('admin_payments');
+        }
+
+        // =========================================================================
+        // 10. ADMIN USER MANAGEMENT, SALES REPORT & PROFILE
+        // =========================================================================
+        function renderAdminUserManagement() {
+            const db = getDB();
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <button onclick="navigateTo('admin_dashboard')" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600">
+                                <i class="fas fa-arrow-left text-xs"></i>
+                            </button>
+                            <h2 class="text-base font-extrabold text-slate-800">User Management</h2>
+                        </div>
+                    </div>
+
+                    <!-- Create Staff / Admin / Patient User -->
+                    <form onsubmit="adminCreateUser(event)" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
+                        <h3 class="text-xs font-extrabold text-teal-700 uppercase">Add Staff / Admin / User</h3>
+                        <input id="au-name" type="text" required placeholder="Full Name" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input id="au-phone" type="tel" required placeholder="Phone Number" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                            <select id="au-role" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold">
+                                <option value="staff">Diagnostic Staff</option>
+                                <option value="admin">Super Admin</option>
+                                <option value="patient">Patient / User</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input id="au-user" type="text" required placeholder="Username" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                            <input id="au-pass" type="text" required placeholder="Password" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs">
+                        </div>
+                        <button type="submit" class="w-full py-2.5 bg-teal-600 text-white rounded-xl text-xs font-bold">Create User Account</button>
+                    </form>
+
+                    <!-- Users List -->
+                    <div class="space-y-2">
+                        ${db.users.map(u => `
+                            <div class="bg-white p-3.5 rounded-2xl border border-slate-200 flex items-center justify-between">
+                                <div>
+                                    <h4 class="font-bold text-sm text-slate-800">${u.fullName}</h4>
+                                    <p class="text-xs text-slate-500">@${u.username} • ${u.phone}</p>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase ${
+                                    u.role === 'admin' ? 'bg-slate-800 text-white' :
+                                    u.role === 'staff' ? 'bg-blue-100 text-blue-700' : 'bg-teal-100 text-teal-700'
+                                }">${u.role}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function adminCreateUser(e) {
+            e.preventDefault();
+            const db = getDB();
+            db.users.push({
+                id: Date.now(),
+                fullName: document.getElementById('au-name').value.trim(),
+                phone: document.getElementById('au-phone').value.trim(),
+                role: document.getElementById('au-role').value,
+                username: document.getElementById('au-user').value.trim(),
+                password: document.getElementById('au-pass').value.trim()
+            });
+            saveDB(db);
+            showToast('নতুন ইউজার তৈরি হয়েছে!', 'success');
+            navigateTo('admin_users');
+        }
+
+        function renderAdminSalesReport() {
+            const db = getDB();
+            const totalBilled = db.orders.reduce((s, o) => s + Number(o.totalBill || 0), 0);
+            const totalPaid = db.orders.reduce((s, o) => s + Number(o.payAmount || 0), 0);
+            const totalDue = db.orders.reduce((s, o) => s + Number(o.due || 0), 0);
+            const pendingCount = db.orders.filter(o => o.status === 'Pending Verification').length;
+
+            return `
+                <div class="p-4 space-y-4">
+                    <div class="flex items-center gap-2">
+                        <button onclick="navigateTo('admin_dashboard')" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600">
+                            <i class="fas fa-arrow-left text-xs"></i>
+                        </button>
+                        <h2 class="text-base font-extrabold text-slate-800">Sales & Dashboard Summary</h2>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                            <p class="text-[11px] text-slate-400 font-bold uppercase">Total Sales</p>
+                            <h3 class="text-lg font-extrabold text-slate-800 mt-1">${totalBilled.toLocaleString()} ৳</h3>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                            <p class="text-[11px] text-slate-400 font-bold uppercase">Collected (Paid)</p>
+                            <h3 class="text-lg font-extrabold text-emerald-600 mt-1">${totalPaid.toLocaleString()} ৳</h3>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                            <p class="text-[11px] text-slate-400 font-bold uppercase">Total Due</p>
+                            <h3 class="text-lg font-extrabold text-rose-600 mt-1">${totalDue.toLocaleString()} ৳</h3>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                            <p class="text-[11px] text-slate-400 font-bold uppercase">Pending Trx</p>
+                            <h3 class="text-lg font-extrabold text-amber-600 mt-1">${pendingCount} Orders</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-2 text-xs">
+                        <h3 class="font-extrabold text-slate-700 uppercase">System Database Overview</h3>
+                        <p class="flex justify-between py-1 border-b border-slate-100"><span>Consultants & Doctors:</span><strong>${db.consultants.length + db.doctors.length}</strong></p>
+                        <p class="flex justify-between py-1 border-b border-slate-100"><span>Nurses & Aya Caregivers:</span><strong>${db.nurses.length + db.ayas.length}</strong></p>
+                        <p class="flex justify-between py-1 border-b border-slate-100"><span>Diagnostic Tests Catalog:</span><strong>${db.tests.length}</strong></p>
+                        <p class="flex justify-between py-1 border-b border-slate-100"><span>Registered Blood Donors:</span><strong>${db.bloodDonors.length}</strong></p>
+                        <p class="flex justify-between py-1"><span>Active Payment Channels:</span><strong>${db.paymentChannels.length}</strong></p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderProfileScreen() {
+            return `
+                <div class="p-4 space-y-4">
+                    <h2 class="text-base font-extrabold text-slate-800">Profile Setting</h2>
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200 space-y-3">
+                        <div class="flex items-center gap-3 pb-3 border-b border-slate-100">
+                            <div class="w-14 h-14 rounded-2xl bg-teal-600 text-white flex items-center justify-center text-2xl font-bold">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-base text-slate-800">${currentUser.fullName}</h3>
+                                <p class="text-xs text-slate-500">@${currentUser.username} • Role: <strong class="uppercase">${currentUser.role}</strong></p>
+                            </div>
+                        </div>
+                        <form onsubmit="updateProfile(event)" class="space-y-3">
+                            <div>
+                                <label class="text-xs font-bold text-slate-600">Full Name</label>
+                                <input id="prof-name" type="text" required value="${currentUser.fullName}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600">Phone Number</label>
+                                <input id="prof-phone" type="tel" required value="${currentUser.phone}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-600">New Password</label>
+                                <input id="prof-pass" type="text" required value="${currentUser.password}" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs mt-1">
+                            </div>
+                            <button type="submit" class="w-full py-3 bg-teal-600 text-white rounded-xl text-xs font-bold shadow">Update Profile</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateProfile(e) {
+            e.preventDefault();
+            const db = getDB();
+            const u = db.users.find(x => x.id === currentUser.id);
+            if (u) {
+                u.fullName = document.getElementById('prof-name').value.trim();
+                u.phone = document.getElementById('prof-phone').value.trim();
+                u.password = document.getElementById('prof-pass').value.trim();
+                saveDB(db);
+                currentUser = u;
+                updateChromeUI();
+                showToast('প্রোফাইল আপডেট সম্পন্ন হয়েছে!', 'success');
+            }
+        }
+
+        // Initialize App on Load
+        window.onload = function () {
+            getDB(); // Seed localStorage if empty
+            navigateTo('login');
+        };
+    </script>
+</body>
+</html>
